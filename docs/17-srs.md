@@ -320,207 +320,36 @@ This prevents the same requirement from receiving different identifiers in diffe
 
 # 10. Non-Functional Requirements
 
-## 10.1 Performance
+The complete and authoritative non-functional requirements for CoursePilot are documented in [14-non-functional-requirements.md](14-non-functional-requirements.md).
+
+The identifiers defined in that document, from `NFR-001` through `NFR-084`, shall be used consistently throughout the SRS, Technical Design Document, system design, database design, API design, implementation, and testing documents.
+
+## 10.1 Non-Functional Requirement Summary
+
+| Requirement Area    | Requirement IDs    | Summary                                                                                                                                       |
+| ------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Performance         | NFR-001 to NFR-006 | Page loading, API response time, registration validation, seat updates, concurrent users, and search performance                              |
+| Availability        | NFR-007 to NFR-010 | System availability, maintenance scheduling, service recovery, and registration-period availability                                           |
+| Reliability         | NFR-011 to NFR-016 | Consistent registration processing, seat allocation, waiting-list order, transactions, rollback, and status consistency                       |
+| Security            | NFR-017 to NFR-028 | Authentication, password protection, authorization, secure communication, session control, input validation, and secure error handling        |
+| Privacy             | NFR-029 to NFR-032 | Student-data confidentiality, minimum data access, limited data collection, and accountability                                                |
+| Usability           | NFR-033 to NFR-040 | Navigation, interface clarity, feedback, validation messages, status visibility, schedule readability, seat visibility, and credit visibility |
+| Accessibility       | NFR-041 to NFR-045 | Keyboard navigation, form labels, text contrast, error identification, and readable zoomed text                                               |
+| Compatibility       | NFR-046 to NFR-049 | Browser compatibility, responsive design, JSON communication, and standard web protocols                                                      |
+| Scalability         | NFR-050 to NFR-053 | User growth, database growth, horizontal expansion, and searchable-field indexing                                                             |
+| Maintainability     | NFR-054 to NFR-060 | Modular architecture, readable code, documentation, version control, issue tracking, configuration, and dependency management                 |
+| Testability         | NFR-061 to NFR-065 | Unit tests, API tests, registration-rule tests, invalid-input tests, and repeatable test results                                              |
+| Data Integrity      | NFR-066 to NFR-072 | Duplicate prevention, valid capacity, enrollment limits, referential integrity, valid schedules, and controlled statuses                      |
+| Backup and Recovery | NFR-073 to NFR-076 | Regular backups, secure backup storage, restoration, and recovery testing                                                                     |
+| Logging and Audit   | NFR-077 to NFR-080 | Error logging, registration auditing, administrative auditing, and log protection                                                             |
+| Deployment          | NFR-081 to NFR-084 | Environment separation, environment variables, Docker support, and API documentation                                                          |
+
+## 10.2 Requirement Authority
+
+When another CoursePilot document refers to a non-functional requirement, the identifier and definition in [14-non-functional-requirements.md](14-non-functional-requirements.md) shall take priority.
+
+This prevents the same non-functional requirement from receiving different identifiers in separate documents.
 
-### NFR-001
-
-Standard pages should load within three seconds under normal conditions.
-
-### NFR-002
-
-Normal API requests should complete within two seconds.
-
-### NFR-003
-
-Registration validation should complete within three seconds.
-
-### NFR-004
-
-Course search results should appear within two seconds.
-
-### NFR-005
-
-The initial system should support at least 500 concurrent users.
-
----
-
-## 10.2 Reliability
-
-### NFR-006
-
-Registration operations shall not create incomplete records.
-
-### NFR-007
-
-Seat allocation shall use database transactions.
-
-### NFR-008
-
-Waiting-list order shall remain consistent.
-
-### NFR-009
-
-Failed registration operations shall roll back incomplete changes.
-
-### NFR-010
-
-Registration statuses shall remain consistent across all user views.
-
----
-
-## 10.3 Security
-
-### NFR-011
-
-Protected functions shall require authentication.
-
-### NFR-012
-
-Passwords shall be securely hashed.
-
-### NFR-013
-
-The system shall enforce role-based authorization.
-
-### NFR-014
-
-Students shall only access their own records.
-
-### NFR-015
-
-Sensitive communication should use HTTPS.
-
-### NFR-016
-
-All inputs shall be validated.
-
-### NFR-017
-
-Database access shall use an ORM or parameterized queries.
-
-### NFR-018
-
-Error responses shall not expose sensitive internal information.
-
----
-
-## 10.4 Usability
-
-### NFR-019
-
-The user interface shall provide clear navigation.
-
-### NFR-020
-
-Validation messages shall identify the problem and affected course.
-
-### NFR-021
-
-Registration statuses shall be clearly visible.
-
-### NFR-022
-
-Seat availability and selected credits shall remain easy to view.
-
-### NFR-023
-
-The schedule shall be readable and organized.
-
----
-
-## 10.5 Compatibility
-
-### NFR-024
-
-The system shall support recent desktop and mobile browsers.
-
-### NFR-025
-
-The frontend shall be responsive.
-
-### NFR-026
-
-The API shall use JSON.
-
-### NFR-027
-
-The API shall use standard HTTP methods and status codes.
-
----
-
-## 10.6 Maintainability
-
-### NFR-028
-
-The system shall use a modular architecture.
-
-### NFR-029
-
-Source code shall follow consistent naming and formatting.
-
-### NFR-030
-
-The project shall include setup, API, database, and technical documentation.
-
-### NFR-031
-
-Git and GitHub shall be used for version control.
-
-### NFR-032
-
-GitHub Issues and Projects shall be used for task tracking.
-
----
-
-## 10.7 Data Integrity
-
-### NFR-033
-
-Duplicate registrations shall be prevented.
-
-### NFR-034
-
-Duplicate waiting-list entries shall be prevented.
-
-### NFR-035
-
-Section capacity shall be a positive integer.
-
-### NFR-036
-
-Approved enrollment shall not exceed section capacity.
-
-### NFR-037
-
-Foreign-key relationships shall maintain referential integrity.
-
-### NFR-038
-
-Class end time shall be later than start time.
-
----
-
-## 10.8 Logging and Recovery
-
-### NFR-039
-
-Backend errors shall be logged.
-
-### NFR-040
-
-Registration decisions shall be recorded.
-
-### NFR-041
-
-Administrative changes shall be recorded.
-
-### NFR-042
-
-Regular database backups should be created.
-
-### NFR-043
-
-Authorized administrators should be able to restore valid backups.
 
 ---
 
