@@ -38,6 +38,26 @@ This document is intended for:
 * Testers
 * Future maintenance teams
 
+### 1.4 Related Documents
+
+The following documents provide supporting requirements and technical information for CoursePilot:
+
+* [Project Overview](01-project-overview.md)
+* [Product Requirements Document](08-prd.md)
+* [User Personas](09-user-personas.md)
+* [User Journey](10-user-journey.md)
+* [User Stories](11-user-stories.md)
+* [Acceptance Criteria](12-acceptance-criteria.md)
+* [Functional Requirements](13-functional-requirements.md)
+* [Non-Functional Requirements](14-non-functional-requirements.md)
+* [Use Cases](15-use-cases.md)
+* [Data Flow Diagrams](16-dfd.md)
+* [Entity Relationship Diagram](18-erd.md)
+* [System Design](19-system-design.md)
+* [Technical Design Document](20-tdd.md)
+* [Database Design](21-database-design.md)
+* [REST API Design](22-api-design.md)
+
 ---
 
 ## 2. Product Overview
