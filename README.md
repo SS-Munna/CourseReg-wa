@@ -194,18 +194,59 @@ CourseReg-wa/
 
 ## Project Management
 
-Project activities are managed through GitHub Issues and a GitHub Kanban board.
+CoursePilot is managed through GitHub Issues and a GitHub Project board.
 
 * [GitHub Issues](https://github.com/SS-Munna/CourseReg-wa/issues)
-* [GitHub Project Board](https://github.com/SS-Munna/CourseReg-wa/projects)
-* [Repository](https://github.com/SS-Munna/CourseReg-wa)
+* [GitHub Projects](https://github.com/SS-Munna/CourseReg-wa/projects)
+* [CoursePilot Repository](https://github.com/SS-Munna/CourseReg-wa)
 
-The project issues cover:
+The repository contains two categories of issues:
 
-1. Business analysis documentation
-2. Product Requirement Document
+### Planning and Documentation Issues
+
+The original planning issues cover:
+
+1. Business Analysis
+2. Product Requirements Document
 3. Software Requirements Specification
 4. Technical Design Document
+
+These issues represent the requirement gathering, analysis, and technical design completed before implementation.
+
+### Development and Implementation Issues
+
+The implementation backlog contains tasks for:
+
+* Frontend and backend setup
+* PostgreSQL and SQLAlchemy configuration
+* Database migrations
+* Authentication and JWT handling
+* Role-based access control
+* Course and section APIs
+* Course search and filtering
+* Prerequisite validation
+* Credit calculation and validation
+* Schedule-conflict detection
+* Safe seat allocation
+* Final registration submission
+* Waiting-list management
+* Advisor approval and rejection
+* Registration-status tracking
+* Weekly timetable
+* Department administration
+* Notifications and audit logs
+* Automated testing
+* Docker and continuous integration
+* Security review and regression testing
+
+The CoursePilot Project Board organizes tasks using:
+
+* Backlog
+* In Progress
+* Done
+
+Most implementation tasks remain in the Backlog until development begins. Only actively developed tasks should be moved to In Progress.
+
 
 ## Requirement Traceability
 
@@ -229,9 +270,20 @@ The CoursePilot requirements were developed using:
 
 ## Project Status
 
-The business analysis, Product Requirements Document, Software Requirements Specification, and Technical Design Document have been prepared.
+The following project documentation has been completed:
 
-The project is currently in the requirements-analysis and technical-design stage.
+* Business Analysis
+* Product Requirements Document
+* Software Requirements Specification
+* Technical Design Document
+* Entity Relationship Diagram
+* Database Design
+* REST API Design
+
+The survey findings have been finalized and incorporated into the business-analysis documentation.
+
+CoursePilot is now ready to move from planning and technical design into implementation. Development tasks have been created and organized through GitHub Issues and the CoursePilot Project Board.
+
 
 ## Project Owner
 
