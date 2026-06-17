@@ -197,7 +197,7 @@ CourseReg-wa/
 CoursePilot is managed through GitHub Issues and a GitHub Project board.
 
 * [GitHub Issues](https://github.com/SS-Munna/CourseReg-wa/issues)
-* [GitHub Projects](https://github.com/SS-Munna/CourseReg-wa/projects)
+* [CoursePilot Project Board](https://github.com/users/SS-Munna/projects/3)
 * [CoursePilot Repository](https://github.com/SS-Munna/CourseReg-wa)
 
 The repository contains two categories of issues:
