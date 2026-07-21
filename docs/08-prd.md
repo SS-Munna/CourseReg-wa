@@ -11,7 +11,7 @@
 | Intended Platform | Web Application                                    |
 | Proposed Frontend | React                                              |
 | Proposed Backend  | FastAPI                                            |
-| Proposed Database | PostgreSQL                                         |
+| Proposed Database | AWS DynamoDB                                       |
 
 ## 2. Product Overview
 

@@ -8,7 +8,7 @@ The system helps students browse available course sections, verify prerequisites
 
 Existing course-registration systems may display outdated seat availability, provide limited prerequisite information, and make it difficult for students to track selected class times. When a section becomes full, students may also lack a structured method for requesting a seat.
 
-CoursePilot addresses these problems through real-time seat verification, automated registration validation, structured waiting lists, advisor approval, and clear registration-status tracking.
+CoursePilot addresses these problems through course browsing, course search and filtering, seat-availability checking, registration validation, structured waiting lists, advisor approval, and clear registration-status tracking.
 
 ## Main Features
 
@@ -77,19 +77,19 @@ CoursePilot addresses these problems through real-time seat verification, automa
 
 ## Proposed Technology Stack
 
-| Layer              | Technology           |
-| ------------------ | -------------------- |
-| Frontend           | React and TypeScript |
-| Build Tool         | Vite                 |
-| Backend            | FastAPI and Python   |
-| Database           | PostgreSQL           |
-| ORM                | SQLAlchemy           |
-| Validation         | Pydantic             |
-| Authentication     | JSON Web Token       |
-| API Style          | REST API             |
-| API Documentation  | OpenAPI and Swagger  |
-| Version Control    | Git and GitHub       |
-| Deployment Support | Docker               |
+| Layer | Technology |
+| --- | --- |
+| Frontend | React and TypeScript |
+| Build Tool | Vite |
+| Backend | FastAPI and Python |
+| Database | AWS DynamoDB |
+| Database SDK | boto3 |
+| Validation | Pydantic |
+| Authentication | JSON Web Token |
+| API Style | REST API |
+| API Documentation | OpenAPI and Swagger |
+| Version Control | Git and GitHub |
+| Deployment Support | Docker |
 
 ## System Architecture
 
@@ -97,9 +97,19 @@ CoursePilot follows a three-tier web architecture:
 
 1. **Presentation layer:** React and TypeScript frontend
 2. **Application layer:** FastAPI REST API and business services
-3. **Data layer:** PostgreSQL database through SQLAlchemy
+3. **Data layer:** AWS DynamoDB accessed through boto3-based backend data-access functions
+
+The frontend communicates with the backend through REST API endpoints. The backend handles application logic, validates requests, communicates with DynamoDB, and returns structured JSON responses to the frontend.
 
 The backend manages registration rules such as prerequisite validation, credit-limit checking, schedule-conflict detection, seat allocation, waiting-list ordering, and advisor approval.
+
+## Current Implementation Direction
+
+The current implementation uses AWS DynamoDB as the project database. DynamoDB is accessed from the FastAPI backend using boto3.
+
+AWS configuration is handled through environment variables. Secret values such as AWS access keys must not be committed to the repository. Only example configuration files such as `.env.example` should be committed.
+
+For the course-catalog feature, DynamoDB will store course-related records such as course code, title, department, credits, semester, instructor, capacity, and available seats.
 
 ## Project Documentation
 
@@ -167,6 +177,25 @@ flowchart TD
 
 ```text
 CourseReg-wa/
+├── backend/
+│   ├── app/
+│   │   ├── __init__.py
+│   │   └── main.py
+│   ├── .env.example
+│   ├── .gitignore
+│   ├── README.md
+│   └── requirements.txt
+├── frontend/
+│   ├── public/
+│   ├── src/
+│   │   ├── App.css
+│   │   ├── App.tsx
+│   │   ├── index.css
+│   │   └── main.tsx
+│   ├── index.html
+│   ├── package.json
+│   ├── tsconfig.json
+│   └── vite.config.ts
 ├── docs/
 │   ├── 01-project-overview.md
 │   ├── 02-problem-statement.md
@@ -191,6 +220,95 @@ CourseReg-wa/
 │   └── 22-api-design.md
 └── README.md
 ```
+
+## Local Development
+
+### Backend
+
+Navigate to the backend folder:
+
+```bash
+cd backend
+```
+
+Create and activate a virtual environment:
+
+```bash
+py -m venv .venv
+.\.venv\Scripts\activate
+```
+
+Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Run the FastAPI backend:
+
+```bash
+uvicorn app.main:app --reload
+```
+
+The backend will run at:
+
+```text
+http://127.0.0.1:8000
+```
+
+FastAPI documentation will be available at:
+
+```text
+http://127.0.0.1:8000/docs
+```
+
+### Frontend
+
+Navigate to the frontend folder:
+
+```bash
+cd frontend
+```
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Run the frontend development server:
+
+```bash
+npm run dev
+```
+
+The frontend will run at:
+
+```text
+http://localhost:5173
+```
+
+## Environment Configuration
+
+The backend uses environment variables for application and database configuration.
+
+Example backend environment variables:
+
+```text
+APP_NAME=CoursePilot API
+ENVIRONMENT=development
+ALLOWED_ORIGINS=http://localhost:5173
+AWS_REGION=us-east-1
+DYNAMODB_COURSES_TABLE=CoursePilotCourses
+```
+
+Important security rule:
+
+```text
+Do not commit real AWS access keys, secret keys, or session tokens to GitHub.
+```
+
+Only commit `.env.example`. Keep the real `.env` file local.
 
 ## Project Management
 
@@ -218,8 +336,8 @@ These issues represent the requirement gathering, analysis, and technical design
 The implementation backlog contains tasks for:
 
 * Frontend and backend setup
-* PostgreSQL and SQLAlchemy configuration
-* Database migrations
+* AWS DynamoDB and boto3 configuration
+* DynamoDB table setup and seed data
 * Authentication and JWT handling
 * Role-based access control
 * Course and section APIs
@@ -246,7 +364,6 @@ The CoursePilot Project Board organizes tasks using:
 * Done
 
 Most implementation tasks remain in the Backlog until development begins. Only actively developed tasks should be moved to In Progress.
-
 
 ## Requirement Traceability
 
@@ -280,13 +397,12 @@ The following project documentation has been completed:
 * Database Design
 * REST API Design
 
-The survey findings have been finalized and incorporated into the business-analysis documentation.
+The frontend and backend base setup has been completed. CoursePilot has now moved from planning into implementation.
 
-CoursePilot is now ready to move from planning and technical design into implementation. Development tasks have been created and organized through GitHub Issues and the CoursePilot Project Board.
-
+The current implementation direction uses React, FastAPI, and AWS DynamoDB. Development tasks are managed through GitHub Issues and the CoursePilot Project Board.
 
 ## Project Owner
 
 **SS-Munna**
 
-This is an individual academic project managed through GitHub Issues, commits, documentation, and a Kanban board.
+This is an individual academic project managed through GitHub Issues, commits, documentation, pull requests, and a Kanban board.

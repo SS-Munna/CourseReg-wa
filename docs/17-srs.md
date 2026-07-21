@@ -232,7 +232,7 @@ Supported browsers should include recent versions of:
 The proposed server environment includes:
 
 * FastAPI backend
-* PostgreSQL database
+* AWS DynamoDB database
 * REST API
 * JWT-based authentication
 * Linux-compatible deployment environment
@@ -405,7 +405,7 @@ Example API categories include:
 
 ## 11.3 Database Interface
 
-The FastAPI backend will communicate with PostgreSQL through SQLAlchemy or another compatible ORM.
+The FastAPI backend will communicate with AWS DynamoDB through boto3-based data-access functions.
 
 ## 11.4 Communication Interface
 
