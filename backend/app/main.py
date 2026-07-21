@@ -1,24 +1,18 @@
-import os
-
-from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-load_dotenv()
-
-APP_NAME = os.getenv("APP_NAME", "CoursePilot API")
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+from app.config import get_allowed_origins, settings
+from app.dynamodb import get_database_status
 
 app = FastAPI(
-    title=APP_NAME,
+    title=settings.app_name,
     version="0.1.0",
     description="Base FastAPI backend service for CoursePilot.",
 )
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[origin.strip() for origin in ALLOWED_ORIGINS],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -31,6 +25,7 @@ def read_root():
         "message": "Welcome to the CoursePilot API",
         "docs": "/docs",
         "health": "/health",
+        "database_status": "/api/database/status",
     }
 
 
@@ -38,6 +33,11 @@ def read_root():
 def health_check():
     return {
         "status": "ok",
-        "service": APP_NAME,
-        "environment": ENVIRONMENT,
+        "service": settings.app_name,
+        "environment": settings.environment,
     }
+
+
+@app.get("/api/database/status")
+def database_status():
+    return get_database_status()
