@@ -4,7 +4,7 @@
 
 This document defines the proposed REST API design for CoursePilot.
 
-The API connects the React frontend with the FastAPI backend and PostgreSQL database.
+The API connects the React frontend with the FastAPI backend and AWS DynamoDB database.
 
 It supports:
 
@@ -20,30 +20,52 @@ It supports:
 * Department administration
 * User and role administration
 
----
-
-# 2. API Technology
-
-| Item                 | Technology             |
-| -------------------- | ---------------------- |
-| Backend Framework    | FastAPI                |
-| Programming Language | Python                 |
-| API Style            | REST                   |
-| Data Format          | JSON                   |
-| Authentication       | JSON Web Token         |
-| Request Validation   | Pydantic               |
-| Database Access      | SQLAlchemy             |
-| Database             | PostgreSQL             |
-| API Documentation    | OpenAPI and Swagger UI |
-
----
-
-# 3. Base URL
-
-The development API base URL may be:
+For the current implementation, the main focus is the course-catalog workflow:
 
 ```text
-http://localhost:8000/api/v1
+React frontend
+    ↓
+GET /api/courses
+    ↓
+FastAPI backend
+    ↓
+DynamoDB course table
+    ↓
+JSON response
+    ↓
+Course list displayed in frontend
+```
+
+---
+
+## 2. API Technology
+
+| Item | Technology |
+| --- | --- |
+| Backend Framework | FastAPI |
+| Programming Language | Python |
+| API Style | REST |
+| Data Format | JSON |
+| Authentication | JSON Web Token |
+| Request Validation | Pydantic |
+| Database Access | boto3 |
+| Database | AWS DynamoDB |
+| API Documentation | OpenAPI and Swagger UI |
+
+---
+
+## 3. Base URL
+
+The current local development API base URL may be:
+
+```text
+http://127.0.0.1:8000
+```
+
+The planned versioned API base URL may be:
+
+```text
+http://127.0.0.1:8000/api/v1
 ```
 
 A deployed API may use:
@@ -52,7 +74,13 @@ A deployed API may use:
 https://api.coursepilot.example.com/api/v1
 ```
 
-All endpoints in this document are written relative to:
+For the current assessment implementation, the course-catalog endpoint may be implemented as:
+
+```text
+/api/courses
+```
+
+Future versions may organize all endpoints under:
 
 ```text
 /api/v1
@@ -60,7 +88,7 @@ All endpoints in this document are written relative to:
 
 ---
 
-# 4. General API Principles
+## 4. General API Principles
 
 The CoursePilot API should follow these principles:
 
@@ -73,25 +101,25 @@ The CoursePilot API should follow these principles:
 7. Validate all incoming data.
 8. Return consistent success and error responses.
 9. Use pagination for large result sets.
-10. Use transactions for registration and seat-allocation operations.
-11. Avoid exposing internal database or server information.
-12. Version the API using `/api/v1`.
+10. Use DynamoDB conditional writes or transaction writes for consistency-sensitive operations.
+11. Avoid exposing internal database, AWS, or server information.
+12. Version the API using `/api/v1` when the project grows.
 
 ---
 
-# 5. HTTP Methods
+## 5. HTTP Methods
 
-| Method   | Purpose                                |
-| -------- | -------------------------------------- |
-| `GET`    | Retrieve one or more resources         |
-| `POST`   | Create a resource or perform an action |
-| `PUT`    | Replace an existing resource           |
-| `PATCH`  | Partially update a resource            |
-| `DELETE` | Remove or deactivate a resource        |
+| Method | Purpose |
+| --- | --- |
+| `GET` | Retrieve one or more resources |
+| `POST` | Create a resource or perform an action |
+| `PUT` | Replace an existing resource |
+| `PATCH` | Partially update a resource |
+| `DELETE` | Remove or deactivate a resource |
 
 ---
 
-# 6. Authentication
+## 6. Authentication
 
 ## 6.1 Authorization Header
 
@@ -107,7 +135,7 @@ A JWT access token may contain:
 
 ```json
 {
-  "sub": "47bb4682-cb1e-4207-9686-71fa7bafcb50",
+  "sub": "user-id",
   "role": "STUDENT",
   "exp": 1781726400
 }
@@ -124,9 +152,11 @@ The backend must verify:
 * Required role
 * Resource ownership
 
+Authentication is planned for the full CoursePilot system. The current course-catalog assessment feature may expose course browsing as a public or development endpoint until authentication is implemented.
+
 ---
 
-# 7. Standard Success Response
+## 7. Standard Success Response
 
 A normal single-resource response may use:
 
@@ -134,7 +164,7 @@ A normal single-resource response may use:
 {
   "success": true,
   "data": {
-    "id": "resource-uuid"
+    "id": "resource-id"
   }
 }
 ```
@@ -154,9 +184,26 @@ A list response may use:
 }
 ```
 
+For the current implementation, a simpler course-list response may also be used:
+
+```json
+{
+  "courses": [
+    {
+      "course_id": "cse-101",
+      "code": "CSE 101",
+      "title": "Introduction to Computer Science",
+      "department": "CSE",
+      "credits": 3,
+      "available_seats": 12
+    }
+  ]
+}
+```
+
 ---
 
-# 8. Standard Error Response
+## 8. Standard Error Response
 
 ```json
 {
@@ -168,37 +215,49 @@ A list response may use:
       "selected_course": "CSE 301",
       "conflicting_course": "CSE 305",
       "day": "Sunday",
-      "start_time": "10:00:00",
-      "end_time": "11:30:00"
+      "start_time": "10:00",
+      "end_time": "11:30"
     }
+  }
+}
+```
+
+For DynamoDB configuration errors, the backend may return:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "DYNAMODB_CONFIGURATION_ERROR",
+    "message": "DynamoDB configuration is missing or invalid."
   }
 }
 ```
 
 ---
 
-# 9. HTTP Status Codes
+## 9. HTTP Status Codes
 
-| Status Code                 | Meaning                                     |
-| --------------------------- | ------------------------------------------- |
-| `200 OK`                    | Request completed successfully              |
-| `201 Created`               | Resource created successfully               |
-| `204 No Content`            | Operation completed without a response body |
-| `400 Bad Request`           | Invalid request format                      |
-| `401 Unauthorized`          | Authentication failed or token is missing   |
-| `403 Forbidden`             | User does not have permission               |
-| `404 Not Found`             | Requested resource does not exist           |
-| `409 Conflict`              | Resource or business-rule conflict          |
-| `422 Unprocessable Entity`  | Input or business validation failed         |
-| `429 Too Many Requests`     | Request limit exceeded                      |
-| `500 Internal Server Error` | Unexpected server error                     |
-| `503 Service Unavailable`   | Service temporarily unavailable             |
+| Status Code | Meaning |
+| --- | --- |
+| `200 OK` | Request completed successfully |
+| `201 Created` | Resource created successfully |
+| `204 No Content` | Operation completed without a response body |
+| `400 Bad Request` | Invalid request format |
+| `401 Unauthorized` | Authentication failed or token is missing |
+| `403 Forbidden` | User does not have permission |
+| `404 Not Found` | Requested resource does not exist |
+| `409 Conflict` | Resource or business-rule conflict |
+| `422 Unprocessable Entity` | Input or business validation failed |
+| `429 Too Many Requests` | Request limit exceeded |
+| `500 Internal Server Error` | Unexpected server or database error |
+| `503 Service Unavailable` | Service temporarily unavailable |
 
 ---
 
-# 10. Pagination and Filtering
+## 10. Pagination and Filtering
 
-List endpoints should support pagination.
+List endpoints should support pagination when datasets become large.
 
 Example:
 
@@ -208,59 +267,112 @@ GET /courses?page=1&page_size=20
 
 Common pagination parameters:
 
-| Parameter    | Type    | Description                |
-| ------------ | ------- | -------------------------- |
-| `page`       | Integer | Requested page number      |
-| `page_size`  | Integer | Number of records per page |
-| `sort_by`    | String  | Field used for sorting     |
-| `sort_order` | String  | `asc` or `desc`            |
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `page` | Integer | Requested page number |
+| `page_size` | Integer | Number of records per page |
+| `sort_by` | String | Field used for sorting |
+| `sort_order` | String | `asc` or `desc` |
 
 The maximum page size should be limited to prevent very large responses.
 
+For the current course-catalog implementation, filtering may be applied in the backend after reading course items from DynamoDB.
+
 ---
 
-# 11. API Endpoint Summary
+## 11. API Endpoint Summary
 
-| Resource Group       | Base Path               |
-| -------------------- | ----------------------- |
-| Authentication       | `/auth`                 |
-| Current User         | `/users/me`             |
-| Users                | `/users`                |
-| Students             | `/students`             |
-| Courses              | `/courses`              |
-| Sections             | `/sections`             |
-| Registrations        | `/registrations`        |
-| Waiting Lists        | `/waitlists`            |
-| Advisor Functions    | `/advisor`              |
-| Student Schedule     | `/schedules`            |
-| Notifications        | `/notifications`        |
+| Resource Group | Base Path |
+| --- | --- |
+| Health Check | `/health` |
+| Courses | `/api/courses` |
+| Authentication | `/auth` |
+| Current User | `/users/me` |
+| Users | `/users` |
+| Students | `/students` |
+| Sections | `/sections` |
+| Registrations | `/registrations` |
+| Waiting Lists | `/waitlists` |
+| Advisor Functions | `/advisor` |
+| Student Schedule | `/schedules` |
+| Notifications | `/notifications` |
 | Registration Periods | `/registration-periods` |
-| Departments          | `/departments`          |
-| Programs             | `/programs`             |
-| Rooms                | `/rooms`                |
-| Audit Logs           | `/audit-logs`           |
+| Departments | `/departments` |
+| Programs | `/programs` |
+| Rooms | `/rooms` |
+| Audit Logs | `/audit-logs` |
+
+The current implemented assessment feature should prioritize `/health` and `/api/courses`.
 
 ---
 
-# 12. Authentication Endpoints
+## 12. Health Check Endpoint
 
-## 12.1 Login
+## 12.1 Backend Health Check
 
 ```http
-POST /auth/login
+GET /health
 ```
 
 ### Access
 
-Public
+Public development endpoint
 
-### Request
+### Response
 
 ```json
 {
-  "email": "student@example.com",
-  "password": "user-password"
+  "status": "ok",
+  "service": "CoursePilot API",
+  "environment": "development"
 }
+```
+
+### Purpose
+
+This endpoint confirms that the FastAPI backend is running.
+
+---
+
+## 13. Course Endpoints
+
+## 13.1 List Courses
+
+```http
+GET /api/courses
+```
+
+### Access
+
+Public or authenticated users, depending on the implementation phase.
+
+### Query Parameters
+
+| Parameter | Example | Description |
+| --- | --- | --- |
+| `search` | `data structures` | Searches course code or title |
+| `department` | `CSE` | Filters by department |
+| `semester` | `Fall 2026` | Filters by semester |
+| `is_mandatory` | `true` | Filters mandatory courses |
+| `available_only` | `true` | Shows courses with available seats |
+| `page` | `1` | Page number for future pagination |
+| `page_size` | `20` | Records per page for future pagination |
+
+### Backend Processing
+
+The backend should:
+
+1. Receive query parameters from the frontend.
+2. Validate the query parameter values.
+3. Load the DynamoDB course table name from environment variables.
+4. Read course records from DynamoDB.
+5. Apply search and filtering logic.
+6. Return the matching course records as JSON.
+
+### Example Request
+
+```http
+GET /api/courses?search=CSE&department=CSE
 ```
 
 ### Successful Response
@@ -268,138 +380,31 @@ Public
 ```json
 {
   "success": true,
-  "data": {
-    "access_token": "jwt-token",
-    "token_type": "bearer",
-    "expires_in": 3600,
-    "user": {
-      "id": "user-uuid",
-      "email": "student@example.com",
-      "full_name": "Arafat Hossain",
-      "role": "STUDENT"
+  "data": [
+    {
+      "course_id": "cse-101",
+      "code": "CSE 101",
+      "title": "Introduction to Computer Science",
+      "department": "CSE",
+      "semester": "Fall 2026",
+      "instructor": "Dr. Rahman",
+      "credits": 3,
+      "capacity": 40,
+      "available_seats": 12,
+      "is_mandatory": true,
+      "level": "Undergraduate"
     }
-  }
+  ]
 }
 ```
 
 ### Possible Errors
 
-* `INVALID_CREDENTIALS`
-* `ACCOUNT_INACTIVE`
-* `ACCOUNT_SUSPENDED`
-
-### Related Requirements
-
-* FR-001
-* FR-002
-* FR-004
-* FR-005
-
----
-
-## 12.2 Logout
-
-```http
-POST /auth/logout
-```
-
-### Access
-
-Authenticated users
-
-### Response
-
-```json
-{
-  "success": true,
-  "message": "Logged out successfully."
-}
-```
-
-### Related Requirement
-
-* FR-003
-
----
-
-## 12.3 Get Current User
-
-```http
-GET /users/me
-```
-
-### Access
-
-Authenticated users
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "id": "user-uuid",
-    "email": "student@example.com",
-    "full_name": "Arafat Hossain",
-    "role": "STUDENT",
-    "account_status": "ACTIVE"
-  }
-}
-```
-
----
-
-# 13. Course Endpoints
-
-## 13.1 List Courses
-
-```http
-GET /courses
-```
-
-### Access
-
-Authenticated users
-
-### Query Parameters
-
-| Parameter             | Example           | Description                 |
-| --------------------- | ----------------- | --------------------------- |
-| `search`              | `data structures` | Searches code or title      |
-| `department_id`       | UUID              | Filters by department       |
-| `semester_id`         | UUID              | Filters available sections  |
-| `course_level`        | `300`             | Filters by course level     |
-| `is_mandatory`        | `true`            | Filters mandatory courses   |
-| `has_available_seats` | `true`            | Filters sections with seats |
-| `page`                | `1`               | Page number                 |
-| `page_size`           | `20`              | Records per page            |
-
-### Response
-
-```json
-{
-  "success": true,
-  "data": [
-    {
-      "id": "course-uuid",
-      "course_code": "CSE 301",
-      "course_title": "Database Systems",
-      "credit_value": 3.0,
-      "is_mandatory": true,
-      "department": {
-        "id": "department-uuid",
-        "department_code": "CSE"
-      }
-    }
-  ],
-  "pagination": {
-    "page": 1,
-    "page_size": 20,
-    "total_items": 1,
-    "total_pages": 1
-  }
-}
-```
+| Error Code | Meaning |
+| --- | --- |
+| `DYNAMODB_CONFIGURATION_ERROR` | AWS region or table name is missing |
+| `DYNAMODB_OPERATION_FAILED` | DynamoDB read operation failed |
+| `VALIDATION_ERROR` | Query parameter value is invalid |
 
 ### Related Requirements
 
@@ -413,12 +418,21 @@ Authenticated users
 ## 13.2 Get Course Details
 
 ```http
-GET /courses/{course_id}
+GET /api/courses/{course_id}
 ```
 
 ### Access
 
-Authenticated users
+Public or authenticated users, depending on the implementation phase.
+
+### Backend Processing
+
+The backend should:
+
+1. Receive the `course_id` path parameter.
+2. Read the course item from DynamoDB using the partition key.
+3. Return the course details if found.
+4. Return `404 Not Found` if the course does not exist.
 
 ### Response
 
@@ -426,22 +440,29 @@ Authenticated users
 {
   "success": true,
   "data": {
-    "id": "course-uuid",
-    "course_code": "CSE 301",
-    "course_title": "Database Systems",
-    "course_description": "Introduction to database design and management.",
-    "credit_value": 3.0,
-    "course_level": 300,
-    "course_type": "THEORY",
+    "course_id": "cse-201",
+    "code": "CSE 201",
+    "title": "Data Structures",
+    "description": "Linear and nonlinear data structures.",
+    "department": "CSE",
+    "semester": "Fall 2026",
+    "instructor": "Dr. Ahmed",
+    "credits": 3,
+    "capacity": 35,
+    "available_seats": 8,
     "is_mandatory": true,
     "prerequisites": [
+      "CSE 101"
+    ],
+    "section": "A",
+    "schedule": [
       {
-        "course_id": "prerequisite-uuid",
-        "course_code": "CSE 201",
-        "course_title": "Data Structures",
-        "minimum_grade": "C"
+        "day": "Monday",
+        "start_time": "09:00",
+        "end_time": "10:30"
       }
-    ]
+    ],
+    "room": "CSE-301"
   }
 }
 ```
@@ -456,7 +477,7 @@ Authenticated users
 ## 13.3 Create Course
 
 ```http
-POST /courses
+POST /api/courses
 ```
 
 ### Access
@@ -467,48 +488,68 @@ Department administrator or system administrator
 
 ```json
 {
-  "department_id": "department-uuid",
-  "course_code": "CSE 301",
-  "course_title": "Database Systems",
-  "course_description": "Introduction to database systems.",
-  "credit_value": 3.0,
-  "course_level": 300,
-  "course_type": "THEORY",
-  "is_mandatory": true
+  "course_id": "cse-301",
+  "code": "CSE 301",
+  "title": "Database Systems",
+  "description": "Introduction to database design and management.",
+  "department": "CSE",
+  "semester": "Fall 2026",
+  "instructor": "Dr. Rahman",
+  "credits": 3,
+  "capacity": 40,
+  "available_seats": 40,
+  "is_mandatory": true,
+  "level": "Undergraduate"
 }
 ```
 
 ### Response
 
-`201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "course_id": "cse-301",
+    "message": "Course created successfully."
+  }
+}
+```
 
 ### Related Requirements
 
 * FR-071
 * FR-080
 
+This endpoint may be implemented in a future administration feature.
+
 ---
 
 ## 13.4 Update Course
 
 ```http
-PATCH /courses/{course_id}
+PATCH /api/courses/{course_id}
 ```
 
 ### Access
 
 Department administrator or system administrator
 
+### Purpose
+
+Updates course information such as title, instructor, semester, capacity, or mandatory status.
+
 ### Related Requirement
 
 * FR-072
+
+This endpoint may be implemented in a future administration feature.
 
 ---
 
 ## 13.5 Configure Course Prerequisites
 
 ```http
-PUT /courses/{course_id}/prerequisites
+PUT /api/courses/{course_id}/prerequisites
 ```
 
 ### Access
@@ -520,10 +561,7 @@ Department administrator or system administrator
 ```json
 {
   "prerequisites": [
-    {
-      "prerequisite_course_id": "course-uuid",
-      "minimum_grade": "C"
-    }
+    "CSE 201"
   ]
 }
 ```
@@ -532,9 +570,11 @@ Department administrator or system administrator
 
 * FR-079
 
+This endpoint may be implemented in a future administration feature.
+
 ---
 
-# 14. Course Section Endpoints
+## 14. Course Section Endpoints
 
 ## 14.1 List Course Sections
 
@@ -545,8 +585,8 @@ GET /sections
 ### Query Parameters
 
 * `course_id`
-* `semester_id`
-* `instructor_id`
+* `semester`
+* `instructor`
 * `section_status`
 * `has_available_seats`
 * `page`
@@ -559,25 +599,22 @@ GET /sections
   "success": true,
   "data": [
     {
-      "id": "section-uuid",
+      "section_id": "section-cse-301-a",
       "section_number": "A",
       "course": {
+        "course_id": "cse-301",
         "course_code": "CSE 301",
         "course_title": "Database Systems",
-        "credit_value": 3.0
+        "credits": 3
       },
-      "instructor": {
-        "id": "instructor-uuid",
-        "full_name": "Dr. Rahman"
-      },
-      "seat_capacity": 40,
-      "approved_count": 35,
+      "instructor": "Dr. Rahman",
+      "capacity": 40,
       "available_seats": 5,
       "schedules": [
         {
-          "day_of_week": "SUNDAY",
-          "start_time": "10:00:00",
-          "end_time": "11:30:00",
+          "day": "Sunday",
+          "start_time": "10:00",
+          "end_time": "11:30",
           "room": "Room 401"
         }
       ]
@@ -627,18 +664,19 @@ Department administrator or system administrator
 
 ```json
 {
-  "course_id": "course-uuid",
-  "semester_id": "semester-uuid",
-  "instructor_id": "instructor-uuid",
+  "course_id": "cse-301",
+  "semester": "Fall 2026",
+  "instructor": "Dr. Rahman",
   "section_number": "A",
-  "seat_capacity": 40,
+  "capacity": 40,
+  "available_seats": 40,
   "section_status": "OPEN",
   "schedules": [
     {
-      "room_id": "room-uuid",
-      "day_of_week": "SUNDAY",
-      "start_time": "10:00:00",
-      "end_time": "11:30:00"
+      "room": "Room 401",
+      "day": "Sunday",
+      "start_time": "10:00",
+      "end_time": "11:30"
     }
   ]
 }
@@ -691,8 +729,8 @@ Department administrator, academic advisor, or system administrator
 {
   "success": true,
   "data": {
-    "section_id": "section-uuid",
-    "seat_capacity": 40,
+    "section_id": "section-cse-301-a",
+    "capacity": 40,
     "approved_count": 40,
     "pending_count": 3,
     "available_seats": 0,
@@ -708,7 +746,7 @@ Department administrator, academic advisor, or system administrator
 
 ---
 
-# 15. Student Course-Selection Endpoints
+## 15. Student Course-Selection Endpoints
 
 ## 15.1 View Selected Courses
 
@@ -728,17 +766,17 @@ Student
   "data": {
     "selected_courses": [
       {
-        "registration_id": "registration-uuid",
-        "section_id": "section-uuid",
+        "registration_id": "registration-001",
+        "section_id": "section-cse-301-a",
         "course_code": "CSE 301",
         "section_number": "A",
-        "credit_value": 3.0,
+        "credits": 3,
         "registration_status": "DRAFT"
       }
     ],
-    "selected_credits": 3.0,
-    "minimum_credit": 9.0,
-    "maximum_credit": 18.0
+    "selected_credits": 3,
+    "minimum_credit": 9,
+    "maximum_credit": 18
   }
 }
 ```
@@ -766,7 +804,7 @@ Student
 
 ```json
 {
-  "section_id": "section-uuid"
+  "section_id": "section-cse-301-a"
 }
 ```
 
@@ -788,9 +826,9 @@ The backend checks:
 {
   "success": true,
   "data": {
-    "registration_id": "registration-uuid",
+    "registration_id": "registration-001",
     "registration_status": "DRAFT",
-    "selected_credits": 12.0
+    "selected_credits": 12
   }
 }
 ```
@@ -828,7 +866,9 @@ Student and owner of the registration
 
 ### Response
 
-`204 No Content`
+```http
+204 No Content
+```
 
 ### Related Requirement
 
@@ -851,8 +891,8 @@ Student
 ```json
 {
   "section_ids": [
-    "section-uuid-1",
-    "section-uuid-2"
+    "section-cse-301-a",
+    "section-cse-305-a"
   ]
 }
 ```
@@ -864,9 +904,9 @@ Student
   "success": true,
   "data": {
     "valid": false,
-    "selected_credits": 6.0,
-    "minimum_credit": 9.0,
-    "maximum_credit": 18.0,
+    "selected_credits": 6,
+    "minimum_credit": 9,
+    "maximum_credit": 18,
     "errors": [
       {
         "code": "MINIMUM_CREDIT_NOT_MET",
@@ -883,7 +923,7 @@ Student
 
 ---
 
-# 16. Final Registration Endpoints
+## 16. Final Registration Endpoints
 
 ## 16.1 View Registration Summary
 
@@ -935,17 +975,15 @@ Student
 
 The backend must:
 
-1. Begin a database transaction.
-2. Lock relevant section records.
-3. Recheck the registration period.
-4. Recheck prerequisites.
-5. Recheck credit limits.
-6. Recheck schedule conflicts.
-7. Recheck duplicate and completed courses.
-8. Recheck seat availability.
-9. Change valid records to `PENDING`.
-10. Create notification and audit records.
-11. Commit the transaction.
+1. Recheck the registration period.
+2. Recheck prerequisites.
+3. Recheck credit limits.
+4. Recheck schedule conflicts.
+5. Recheck duplicate and completed courses.
+6. Recheck seat availability.
+7. Use DynamoDB conditional updates or transaction writes when seat counts change.
+8. Change valid records to `PENDING`.
+9. Create notification and audit records.
 
 ### Successful Response
 
@@ -954,7 +992,7 @@ The backend must:
   "success": true,
   "data": {
     "status": "PENDING",
-    "submitted_at": "2026-06-18T09:30:00Z",
+    "submitted_at": "2026-07-23T09:30:00Z",
     "message": "Registration submitted for advisor review."
   }
 }
@@ -989,7 +1027,7 @@ Student
 
 ### Query Parameters
 
-* `semester_id`
+* `semester`
 * `status`
 
 ### Related Requirements
@@ -1014,10 +1052,10 @@ Student and registration owner
 
 The system must:
 
-* Confirm Approved status
+* Confirm approved status
 * Confirm the drop deadline has not passed
-* Change status to Dropped
-* Release the seat
+* Change status to dropped
+* Release the seat using a safe update
 * Process the waiting list
 * Notify the student
 * Record the action
@@ -1028,7 +1066,7 @@ The system must:
 
 ---
 
-# 17. Waiting-List Endpoints
+## 17. Waiting-List Endpoints
 
 ## 17.1 Join Waiting List
 
@@ -1055,11 +1093,11 @@ Student
 {
   "success": true,
   "data": {
-    "waitlist_entry_id": "waitlist-uuid",
-    "section_id": "section-uuid",
+    "waitlist_entry_id": "waitlist-001",
+    "section_id": "section-cse-401-a",
     "waitlist_status": "ACTIVE",
     "queue_position": 4,
-    "joined_at": "2026-06-18T09:40:00Z"
+    "joined_at": "2026-07-23T09:40:00Z"
   }
 }
 ```
@@ -1091,14 +1129,14 @@ Student
   "success": true,
   "data": [
     {
-      "id": "waitlist-uuid",
+      "id": "waitlist-001",
       "course_code": "CSE 401",
       "course_title": "Artificial Intelligence",
       "section_number": "A",
       "queue_position": 4,
       "total_waiting": 12,
       "waitlist_status": "ACTIVE",
-      "joined_at": "2026-06-18T09:40:00Z"
+      "joined_at": "2026-07-23T09:40:00Z"
     }
   ]
 }
@@ -1123,7 +1161,9 @@ Student and waitlist-entry owner
 
 ### Response
 
-`204 No Content`
+```http
+204 No Content
+```
 
 ### Related Requirements
 
@@ -1149,12 +1189,12 @@ Department administrator, academic advisor, or system administrator
   "success": true,
   "data": [
     {
-      "student_id": "student-uuid",
+      "student_id": "student-001",
       "student_number": "2026-001",
       "student_name": "Arafat Hossain",
       "queue_position": 1,
       "waitlist_status": "ACTIVE",
-      "joined_at": "2026-06-18T08:30:00Z"
+      "joined_at": "2026-07-23T08:30:00Z"
     }
   ]
 }
@@ -1190,7 +1230,7 @@ This endpoint may also be called internally after:
 
 ---
 
-# 18. Advisor Endpoints
+## 18. Advisor Endpoints
 
 ## 18.1 View Pending Requests
 
@@ -1206,7 +1246,7 @@ Academic advisor
 
 * `status`
 * `student_id`
-* `semester_id`
+* `semester`
 * `page`
 * `page_size`
 
@@ -1233,9 +1273,9 @@ Assigned academic advisor
 {
   "success": true,
   "data": {
-    "registration_id": "registration-uuid",
+    "registration_id": "registration-001",
     "student": {
-      "id": "student-uuid",
+      "id": "student-001",
       "student_number": "2026-001",
       "full_name": "Arafat Hossain"
     },
@@ -1244,7 +1284,7 @@ Assigned academic advisor
       "course_title": "Database Systems",
       "section_number": "A"
     },
-    "total_selected_credits": 12.0,
+    "total_selected_credits": 12,
     "prerequisite_result": "PASSED",
     "conflict_result": "NO_CONFLICT",
     "registration_status": "PENDING"
@@ -1282,9 +1322,9 @@ Assigned academic advisor
 {
   "success": true,
   "data": {
-    "registration_id": "registration-uuid",
+    "registration_id": "registration-001",
     "registration_status": "APPROVED",
-    "reviewed_at": "2026-06-18T10:15:00Z"
+    "reviewed_at": "2026-07-23T10:15:00Z"
   }
 }
 ```
@@ -1326,7 +1366,7 @@ The rejection reason is required.
 
 ---
 
-# 19. Student Schedule Endpoints
+## 19. Student Schedule Endpoints
 
 ## 19.1 View Approved Schedule
 
@@ -1340,7 +1380,7 @@ Student
 
 ### Query Parameters
 
-* `semester_id`
+* `semester`
 * `view=list`
 * `view=weekly`
 
@@ -1351,23 +1391,22 @@ Student
   "success": true,
   "data": {
     "semester": {
-      "id": "semester-uuid",
-      "name": "Summer 2026"
+      "name": "Fall 2026"
     },
-    "total_credits": 12.0,
+    "total_credits": 12,
     "courses": [
       {
         "course_code": "CSE 301",
         "course_title": "Database Systems",
         "section_number": "A",
         "instructor": "Dr. Rahman",
-        "credit_value": 3.0,
+        "credits": 3,
         "registration_status": "APPROVED",
         "schedules": [
           {
-            "day_of_week": "SUNDAY",
-            "start_time": "10:00:00",
-            "end_time": "11:30:00",
+            "day": "Sunday",
+            "start_time": "10:00",
+            "end_time": "11:30",
             "room": "Room 401"
           }
         ]
@@ -1386,7 +1425,7 @@ Student
 
 ---
 
-# 20. Notification Endpoints
+## 20. Notification Endpoints
 
 ## 20.1 List Notifications
 
@@ -1428,9 +1467,9 @@ Notification owner
 {
   "success": true,
   "data": {
-    "id": "notification-uuid",
+    "id": "notification-001",
     "is_read": true,
-    "read_at": "2026-06-18T10:30:00Z"
+    "read_at": "2026-07-23T10:30:00Z"
   }
 }
 ```
@@ -1449,7 +1488,7 @@ Authenticated users
 
 ---
 
-# 21. Registration-Period Endpoints
+## 21. Registration-Period Endpoints
 
 ## 21.1 View Active Registration Period
 
@@ -1467,13 +1506,13 @@ Authenticated users
 {
   "success": true,
   "data": {
-    "id": "registration-period-uuid",
-    "semester_id": "semester-uuid",
-    "opening_time": "2026-06-10T08:00:00Z",
-    "closing_time": "2026-06-20T17:00:00Z",
-    "drop_deadline": "2026-06-25T17:00:00Z",
-    "minimum_credit": 9.0,
-    "maximum_credit": 18.0,
+    "id": "period-001",
+    "semester": "Fall 2026",
+    "opening_time": "2026-07-10T08:00:00Z",
+    "closing_time": "2026-07-20T17:00:00Z",
+    "drop_deadline": "2026-07-25T17:00:00Z",
+    "minimum_credit": 9,
+    "maximum_credit": 18,
     "status": "OPEN"
   }
 }
@@ -1519,7 +1558,7 @@ Department administrator or system administrator
 
 ---
 
-# 22. Department and Program Endpoints
+## 22. Department and Program Endpoints
 
 ## 22.1 List Departments
 
@@ -1555,7 +1594,7 @@ Department administrator or system administrator
 
 ---
 
-# 23. Room Endpoints
+## 23. Room Endpoints
 
 ## 23.1 List Rooms
 
@@ -1589,7 +1628,7 @@ Department administrator or system administrator
 
 ---
 
-# 24. User Administration Endpoints
+## 24. User Administration Endpoints
 
 ## 24.1 List Users
 
@@ -1701,7 +1740,7 @@ PATCH /users/{user_id}/role
 
 ---
 
-# 25. Audit Log Endpoints
+## 25. Audit Log Endpoints
 
 ## 25.1 View Audit Logs
 
@@ -1733,58 +1772,58 @@ Audit-log endpoints must not allow normal users to edit or delete audit records.
 
 ---
 
-# 26. Role-Permission Matrix
+## 26. Role-Permission Matrix
 
-| API Area                   | Student | Advisor | Department Admin | System Admin |
-| -------------------------- | ------: | ------: | ---------------: | -----------: |
-| Login                      |     Yes |     Yes |              Yes |          Yes |
-| View own profile           |     Yes |     Yes |              Yes |          Yes |
-| Browse courses             |     Yes |     Yes |              Yes |          Yes |
-| Select courses             |     Yes |      No |               No |           No |
-| Submit registration        |     Yes |      No |               No |           No |
-| Join waiting list          |     Yes |      No |               No |           No |
-| View own schedule          |     Yes |      No |               No |           No |
-| Review assigned requests   |      No |     Yes |               No |          Yes |
-| Approve or reject requests |      No |     Yes |               No |          Yes |
-| Manage courses             |      No |      No |              Yes |          Yes |
-| Manage sections            |      No |      No |              Yes |          Yes |
-| Manage capacities          |      No |      No |              Yes |          Yes |
-| Monitor waiting lists      |      No | Limited |              Yes |          Yes |
-| Manage users and roles     |      No |      No |               No |          Yes |
-| View audit logs            |      No |      No |          Limited |          Yes |
-
----
-
-# 27. Main Error Codes
-
-| Error Code                  | Description                                            |
-| --------------------------- | ------------------------------------------------------ |
-| `INVALID_CREDENTIALS`       | Login credentials are incorrect                        |
-| `ACCOUNT_INACTIVE`          | User account is inactive                               |
-| `UNAUTHORIZED`              | Authentication is required                             |
-| `FORBIDDEN`                 | User lacks required permission                         |
-| `RESOURCE_NOT_FOUND`        | Requested resource does not exist                      |
-| `DUPLICATE_REGISTRATION`    | Student already selected or registered for the section |
-| `COURSE_ALREADY_COMPLETED`  | Student previously passed the course                   |
-| `MISSING_PREREQUISITE`      | Required prerequisite is missing                       |
-| `SCHEDULE_CONFLICT`         | Course schedule overlaps another course                |
-| `MINIMUM_CREDIT_NOT_MET`    | Selected credits are below the minimum                 |
-| `MAXIMUM_CREDIT_EXCEEDED`   | Selected credits exceed the maximum                    |
-| `SECTION_FULL`              | No direct seat is available                            |
-| `DUPLICATE_WAITLIST_ENTRY`  | Student is already waitlisted                          |
-| `REGISTRATION_CLOSED`       | Registration period is not open                        |
-| `DROP_DEADLINE_PASSED`      | Course can no longer be dropped                        |
-| `INVALID_STATUS_TRANSITION` | Requested status change is not allowed                 |
-| `DATABASE_ERROR`            | Database operation failed                              |
-| `INTERNAL_SERVER_ERROR`     | Unexpected application failure                         |
+| API Area | Student | Advisor | Department Admin | System Admin |
+| --- | ---: | ---: | ---: | ---: |
+| Login | Yes | Yes | Yes | Yes |
+| View own profile | Yes | Yes | Yes | Yes |
+| Browse courses | Yes | Yes | Yes | Yes |
+| Select courses | Yes | No | No | No |
+| Submit registration | Yes | No | No | No |
+| Join waiting list | Yes | No | No | No |
+| View own schedule | Yes | No | No | No |
+| Review assigned requests | No | Yes | No | Yes |
+| Approve or reject requests | No | Yes | No | Yes |
+| Manage courses | No | No | Yes | Yes |
+| Manage sections | No | No | Yes | Yes |
+| Manage capacities | No | No | Yes | Yes |
+| Monitor waiting lists | No | Limited | Yes | Yes |
+| Manage users and roles | No | No | No | Yes |
+| View audit logs | No | No | Limited | Yes |
 
 ---
 
-# 28. Validation Rules
+## 27. Main Error Codes
+
+| Error Code | Description |
+| --- | --- |
+| `INVALID_CREDENTIALS` | Login credentials are incorrect |
+| `ACCOUNT_INACTIVE` | User account is inactive |
+| `UNAUTHORIZED` | Authentication is required |
+| `FORBIDDEN` | User lacks required permission |
+| `RESOURCE_NOT_FOUND` | Requested resource does not exist |
+| `DUPLICATE_REGISTRATION` | Student already selected or registered for the section |
+| `COURSE_ALREADY_COMPLETED` | Student previously passed the course |
+| `MISSING_PREREQUISITE` | Required prerequisite is missing |
+| `SCHEDULE_CONFLICT` | Course schedule overlaps another course |
+| `MINIMUM_CREDIT_NOT_MET` | Selected credits are below the minimum |
+| `MAXIMUM_CREDIT_EXCEEDED` | Selected credits exceed the maximum |
+| `SECTION_FULL` | No direct seat is available |
+| `DUPLICATE_WAITLIST_ENTRY` | Student is already waitlisted |
+| `REGISTRATION_CLOSED` | Registration period is not open |
+| `DROP_DEADLINE_PASSED` | Course can no longer be dropped |
+| `INVALID_STATUS_TRANSITION` | Requested status change is not allowed |
+| `DYNAMODB_CONFIGURATION_ERROR` | DynamoDB environment configuration is missing or invalid |
+| `DYNAMODB_OPERATION_FAILED` | DynamoDB read or write operation failed |
+| `INTERNAL_SERVER_ERROR` | Unexpected application failure |
+
+---
+
+## 28. Validation Rules
 
 The API must validate:
 
-* Valid UUID formats
 * Required request fields
 * Email format
 * Positive seat capacities
@@ -1800,12 +1839,14 @@ The API must validate:
 * Unique user emails
 * Unique student registrations
 * Unique waiting-list entries
+* Valid DynamoDB table configuration
+* Valid search and filter values
 
 ---
 
-# 29. Concurrency and Transaction Requirements
+## 29. Concurrency and Consistency Requirements
 
-Database transactions are required for:
+Consistency-sensitive operations include:
 
 * Final registration submission
 * Advisor approval
@@ -1814,20 +1855,26 @@ Database transactions are required for:
 * Waiting-list promotion
 * Final-seat allocation
 
-During seat allocation, the backend should lock the related section row.
+During seat allocation, the backend should use DynamoDB conditional updates or transaction writes.
 
-```sql
-SELECT id, seat_capacity
-FROM course_sections
-WHERE id = :section_id
-FOR UPDATE;
+Example seat condition:
+
+```text
+available_seats > 0
+```
+
+Example update intent:
+
+```text
+SET available_seats = available_seats - 1
+ONLY IF available_seats > 0
 ```
 
 This prevents two students from receiving the same final available seat.
 
 ---
 
-# 30. API Security
+## 30. API Security
 
 The API shall:
 
@@ -1838,33 +1885,35 @@ The API shall:
 * Enforce role-based permissions
 * Check resource ownership
 * Validate request data
-* Use SQLAlchemy or parameterized queries
+* Use controlled DynamoDB query and update expressions
 * Limit repeated login attempts
 * Avoid exposing stack traces
 * Avoid returning password hashes
 * Avoid logging tokens or passwords
+* Avoid logging AWS access keys or secret keys
 * Store secrets in environment variables
+* Keep real `.env` files out of GitHub
 
 ---
 
-# 31. Rate Limiting
+## 31. Rate Limiting
 
 Sensitive endpoints should support rate limits.
 
 Examples include:
 
-| Endpoint                | Suggested Limit              |
-| ----------------------- | ---------------------------- |
-| `POST /auth/login`      | 5 failed attempts per minute |
-| Course-search endpoints | 60 requests per minute       |
-| Registration submission | 10 requests per minute       |
-| Waiting-list actions    | 10 requests per minute       |
+| Endpoint | Suggested Limit |
+| --- | --- |
+| `POST /auth/login` | 5 failed attempts per minute |
+| Course-search endpoints | 60 requests per minute |
+| Registration submission | 10 requests per minute |
+| Waiting-list actions | 10 requests per minute |
 
 Rate limits may be adjusted based on actual usage.
 
 ---
 
-# 32. API Logging
+## 32. API Logging
 
 Each API request should record:
 
@@ -1881,12 +1930,14 @@ Logs must not store:
 * Passwords
 * Password hashes
 * Access tokens
-* Secret keys
-* Database passwords
+* AWS access keys
+* AWS secret keys
+* AWS session tokens
+* Secret configuration values
 
 ---
 
-# 33. API Documentation
+## 33. API Documentation
 
 FastAPI should automatically provide OpenAPI documentation.
 
@@ -1906,9 +1957,9 @@ Production access to these pages may be restricted.
 
 ---
 
-# 34. API Testing
+## 34. API Testing
 
-## 34.1 Authentication Tests
+### 34.1 Authentication Tests
 
 Test:
 
@@ -1919,18 +1970,21 @@ Test:
 * Expired token
 * Incorrect user role
 
-## 34.2 Course Tests
+### 34.2 Course Tests
 
 Test:
 
-* Course listing
-* Search
-* Filtering
-* Pagination
+* Course listing from DynamoDB
+* Search by course code
+* Search by course title
+* Department filtering
+* Semester filtering
+* Mandatory-course filtering
+* Available-seat filtering
 * Course details
 * Course creation permissions
 
-## 34.3 Registration Tests
+### 34.3 Registration Tests
 
 Test:
 
@@ -1944,7 +1998,7 @@ Test:
 * Full section
 * Successful final submission
 
-## 34.4 Waiting-List Tests
+### 34.4 Waiting-List Tests
 
 Test:
 
@@ -1954,7 +2008,7 @@ Test:
 * Leaving the queue
 * Promotion after a seat becomes available
 
-## 34.5 Advisor Tests
+### 34.5 Advisor Tests
 
 Test:
 
@@ -1964,43 +2018,70 @@ Test:
 * Rejection without reason
 * Successful rejection with reason
 
-## 34.6 Concurrency Tests
+### 34.6 DynamoDB Tests
+
+Test:
+
+* Missing table-name configuration
+* Missing AWS region
+* Successful course-table read
+* DynamoDB operation failure handling
+* Conditional seat update failure
+* Seed data insertion
+
+### 34.7 Concurrency Tests
 
 Test:
 
 * Two users attempt to claim the final seat.
+* Available seat count never becomes negative.
 * Approved count never exceeds capacity.
 * Waiting-list promotion remains correctly ordered.
 
 ---
 
-# 35. Requirement Traceability
+## 35. Requirement Traceability
 
 The functional requirement identifiers below come from `13-functional-requirements.md`.
 
-| API Area                            | Related Functional Requirements |
-| ----------------------------------- | ------------------------------- |
-| Authentication                      | FR-001 to FR-005                |
-| Student dashboard                   | FR-006 to FR-008                |
-| Course browsing                     | FR-009 to FR-013                |
-| Seat availability                   | FR-014 to FR-018                |
-| Course selection                    | FR-019 to FR-024                |
-| Prerequisites                       | FR-025 to FR-028                |
-| Credit validation                   | FR-029 to FR-034                |
-| Schedule conflicts                  | FR-035 to FR-040                |
-| Waiting lists                       | FR-041 to FR-050                |
-| Final submission                    | FR-051 to FR-057                |
-| Registration status                 | FR-058 to FR-061                |
-| Advisor functions                   | FR-062 to FR-070                |
-| Course administration               | FR-071 to FR-084                |
-| Student schedule                    | FR-085 to FR-088                |
-| Notifications                       | FR-089 to FR-091                |
-| User administration                 | FR-092 to FR-096                |
-| Error handling and data consistency | FR-097 to FR-100                |
+| API Area | Related Functional Requirements |
+| --- | --- |
+| Authentication | FR-001 to FR-005 |
+| Student dashboard | FR-006 to FR-008 |
+| Course browsing | FR-009 to FR-013 |
+| Seat availability | FR-014 to FR-018 |
+| Course selection | FR-019 to FR-024 |
+| Prerequisites | FR-025 to FR-028 |
+| Credit validation | FR-029 to FR-034 |
+| Schedule conflicts | FR-035 to FR-040 |
+| Waiting lists | FR-041 to FR-050 |
+| Final submission | FR-051 to FR-057 |
+| Registration status | FR-058 to FR-061 |
+| Advisor functions | FR-062 to FR-070 |
+| Course administration | FR-071 to FR-084 |
+| Student schedule | FR-085 to FR-088 |
+| Notifications | FR-089 to FR-091 |
+| User administration | FR-092 to FR-096 |
+| Error handling and data consistency | FR-097 to FR-100 |
 
 ---
 
-# 36. Future API Enhancements
+## 36. Current Assessment Implementation API
+
+The current assessment implementation should include at minimum:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /health` | Confirms backend is running |
+| `GET /api/courses` | Retrieves courses from DynamoDB |
+| `GET /api/courses?search=...` | Searches courses |
+| `GET /api/courses?department=...` | Filters courses by department |
+
+The frontend should call `/api/courses` and display the returned data in the course-catalog interface.
+
+---
+
+## 37. Future API Enhancements
 
 Possible future endpoints may support:
 
@@ -2015,12 +2096,13 @@ Possible future endpoints may support:
 * Bulk course import
 * University ERP synchronization
 * Mobile application support
+* Improved DynamoDB secondary-index query endpoints
 
 ---
 
-# 37. Conclusion
+## 38. Conclusion
 
-The CoursePilot REST API provides a structured interface between the React frontend, FastAPI backend, and PostgreSQL database.
+The CoursePilot REST API provides a structured interface between the React frontend, FastAPI backend, and AWS DynamoDB database.
 
 The API design supports:
 
@@ -2038,5 +2120,6 @@ The API design supports:
 * Notifications
 * Auditing
 * Consistent error handling
+* DynamoDB-based data access
 
-This API design completes the proposed technical documentation for the CoursePilot system.
+This API design completes the proposed technical documentation for the CoursePilot system and supports the current course-catalog feature implementation.

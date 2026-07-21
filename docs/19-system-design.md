@@ -7,7 +7,7 @@ This document describes the proposed system architecture and component design of
 CoursePilot is a web-based course-registration platform that supports:
 
 * Course and section browsing
-* Real-time seat information
+* Current seat information
 * Course selection
 * Prerequisite validation
 * Credit-limit validation
@@ -22,27 +22,29 @@ The system uses a three-tier architecture consisting of:
 
 1. React frontend
 2. FastAPI backend
-3. PostgreSQL database
+3. AWS DynamoDB database
+
+The current implementation direction uses DynamoDB as the data layer. The FastAPI backend communicates with DynamoDB through boto3-based repository functions.
 
 ---
 
 # 2. Technology Stack
 
-| Layer             | Technology       | Purpose                                 |
-| ----------------- | ---------------- | --------------------------------------- |
-| Frontend          | React            | Builds the user interface               |
-| Frontend language | TypeScript       | Provides type-safe frontend development |
-| Build tool        | Vite             | Runs and builds the React application   |
-| Backend           | FastAPI          | Provides REST API services              |
-| Backend language  | Python           | Implements business logic               |
-| Database          | PostgreSQL       | Stores application data                 |
-| ORM               | SQLAlchemy       | Manages backend database operations     |
-| Validation        | Pydantic         | Validates API request and response data |
-| Authentication    | JWT              | Manages authenticated user sessions     |
-| Password security | bcrypt or Argon2 | Hashes user passwords                   |
-| API documentation | OpenAPI/Swagger  | Documents and tests API endpoints       |
-| Version control   | Git and GitHub   | Stores and manages project changes      |
-| Deployment        | Docker           | Supports containerized deployment       |
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| Frontend | React | Builds the user interface |
+| Frontend language | TypeScript | Provides type-safe frontend development |
+| Build tool | Vite | Runs and builds the React application |
+| Backend | FastAPI | Provides REST API services |
+| Backend language | Python | Implements business logic |
+| Database | AWS DynamoDB | Stores application data using NoSQL tables |
+| Database SDK | boto3 | Connects the FastAPI backend to DynamoDB |
+| Validation | Pydantic | Validates API request and response data |
+| Authentication | JWT | Manages authenticated user sessions |
+| Password security | bcrypt or Argon2 | Hashes user passwords |
+| API documentation | OpenAPI/Swagger | Documents and tests API endpoints |
+| Version control | Git and GitHub | Stores and manages project changes |
+| Deployment support | Docker | Supports containerized frontend and backend deployment |
 
 ---
 
@@ -67,8 +69,9 @@ flowchart LR
     end
 
     subgraph Data["Data Layer"]
-        ORM[SQLAlchemy ORM]
-        DB[(PostgreSQL Database)]
+        Repo[DynamoDB Repository Layer]
+        SDK[boto3 AWS SDK]
+        DB[(AWS DynamoDB)]
     end
 
     User --> Browser
@@ -81,13 +84,14 @@ flowchart LR
     Services --> Notification
     Services --> Audit
 
-    Auth --> ORM
-    Services --> ORM
-    Validation --> ORM
-    Notification --> ORM
-    Audit --> ORM
+    Auth --> Repo
+    Services --> Repo
+    Validation --> Repo
+    Notification --> Repo
+    Audit --> Repo
 
-    ORM --> DB
+    Repo --> SDK
+    SDK --> DB
 ```
 
 ---
@@ -111,7 +115,7 @@ It is responsible for:
 * Receiving API responses
 * Rendering course schedules and waitlists
 
-The frontend must not directly access the database.
+The frontend must not directly access the database. All database operations must go through the FastAPI backend.
 
 ---
 
@@ -128,6 +132,7 @@ It is responsible for:
 * Calling appropriate services
 * Returning standardized JSON responses
 * Returning suitable HTTP status codes
+* Exposing API documentation through Swagger/OpenAPI
 
 ---
 
@@ -154,25 +159,28 @@ Business rules should be placed in the service layer instead of directly inside 
 
 ## 4.4 Repository and Data Access Layer
 
-The repository layer communicates with PostgreSQL through SQLAlchemy.
+The repository layer communicates with AWS DynamoDB through boto3.
 
 It is responsible for:
 
-* Creating records
-* Reading records
-* Updating records
-* Deleting records
-* Running database queries
-* Managing transactions
-* Preventing direct SQL duplication across services
+* Creating items
+* Reading items
+* Updating items
+* Deleting items
+* Running DynamoDB queries and scans
+* Applying reusable filters
+* Hiding DynamoDB access details from the service layer
+* Preventing duplicate database-access code across services
+
+The repository layer should read DynamoDB configuration from environment variables, including the AWS region and table names.
 
 ---
 
 ## 4.5 Database Layer
 
-PostgreSQL stores permanent CoursePilot data.
+AWS DynamoDB stores permanent CoursePilot data.
 
-The database maintains:
+The database may maintain records for:
 
 * User accounts
 * Student profiles
@@ -187,6 +195,19 @@ The database maintains:
 * Waiting-list entries
 * Notifications
 * Audit logs
+
+For the current course-catalog implementation, DynamoDB stores course records containing information such as:
+
+* Course ID
+* Course code
+* Course title
+* Department
+* Semester
+* Instructor
+* Credit value
+* Capacity
+* Available seats
+* Mandatory or elective status
 
 ---
 
@@ -362,11 +383,14 @@ backend/
 │   │   ├── security.py
 │   │   └── exceptions.py
 │   ├── database/
-│   │   ├── base.py
-│   │   ├── session.py
-│   │   └── migrations/
+│   │   ├── dynamodb.py
+│   │   └── seed_courses.py
 │   ├── models/
 │   ├── repositories/
+│   │   ├── course_repository.py
+│   │   ├── registration_repository.py
+│   │   ├── waitlist_repository.py
+│   │   └── user_repository.py
 │   ├── schemas/
 │   ├── services/
 │   │   ├── auth_service.py
@@ -407,19 +431,20 @@ Services should:
 
 * Apply business rules
 * Coordinate repository operations
-* Start and complete transactions
 * Generate domain-specific errors
 * Create notifications
 * Record audit logs
+* Use DynamoDB conditional writes or transactions when consistency is required
 
 ### Repositories
 
 Repositories should:
 
-* Perform database queries
-* Return model objects
+* Perform DynamoDB queries, scans, gets, puts, and updates
+* Return structured Python dictionaries or Pydantic-compatible objects
 * Apply reusable filtering
-* Support transaction management
+* Use DynamoDB condition expressions where needed
+* Keep boto3-specific code outside API route files
 
 ### Schemas
 
@@ -432,7 +457,7 @@ Pydantic schemas should define:
 
 ### Models
 
-SQLAlchemy models should represent PostgreSQL tables and relationships.
+Because DynamoDB is a NoSQL database, CoursePilot may use Pydantic schemas and lightweight Python data structures to represent request, response, and domain objects.
 
 ---
 
@@ -463,6 +488,8 @@ The course service handles:
 * Mandatory-course display
 * Seat-availability calculation
 
+For the current implementation, the course service retrieves course records from the DynamoDB course table through the course repository.
+
 ---
 
 ## 7.3 Registration Service
@@ -474,7 +501,7 @@ The registration service handles:
 * Registration-status changes
 * Course dropping
 * Advisor review coordination
-* Transaction processing
+* Consistent seat-allocation updates using DynamoDB conditional operations
 
 ---
 
@@ -557,13 +584,16 @@ sequenceDiagram
     participant UI as React Frontend
     participant API as FastAPI API
     participant Auth as Authentication Service
-    participant DB as PostgreSQL
+    participant Repo as User Repository
+    participant DB as DynamoDB
 
     User->>UI: Enter email and password
     UI->>API: POST /auth/login
     API->>Auth: Validate credentials
-    Auth->>DB: Retrieve user account
-    DB-->>Auth: User and password hash
+    Auth->>Repo: Retrieve user account
+    Repo->>DB: Get user item
+    DB-->>Repo: User and password hash
+    Repo-->>Auth: User record
     Auth->>Auth: Verify password and account status
 
     alt Valid credentials
@@ -589,22 +619,29 @@ sequenceDiagram
     participant API as FastAPI API
     participant RS as Registration Service
     participant VS as Validation Service
-    participant DB as PostgreSQL
+    participant Repo as Repository Layer
+    participant DB as DynamoDB
 
     Student->>UI: Select a course section
     UI->>API: POST /registrations/selections
     API->>RS: Add selected section
     RS->>VS: Validate selection
 
-    VS->>DB: Check duplicate registration
-    VS->>DB: Check completed courses
-    VS->>DB: Check prerequisites
-    VS->>DB: Retrieve schedules
-    VS->>DB: Check seat availability
+    VS->>Repo: Check duplicate registration
+    Repo->>DB: Query registration items
+    VS->>Repo: Check completed courses
+    Repo->>DB: Query academic records
+    VS->>Repo: Check prerequisites
+    Repo->>DB: Read prerequisite data
+    VS->>Repo: Retrieve schedules
+    Repo->>DB: Read schedule data
+    VS->>Repo: Check seat availability
+    Repo->>DB: Read section item
 
     alt Validation passed
         VS-->>RS: Valid selection
-        RS->>DB: Save selected registration
+        RS->>Repo: Save selected registration
+        Repo->>DB: Put registration item
         RS-->>API: Updated selected courses and credits
         API-->>UI: 201 Created
         UI-->>Student: Display selected course
@@ -627,32 +664,36 @@ sequenceDiagram
     participant API as FastAPI API
     participant RS as Registration Service
     participant VS as Validation Service
-    participant DB as PostgreSQL
+    participant Repo as Repository Layer
+    participant DB as DynamoDB
     participant NS as Notification Service
 
     Student->>UI: Click Final Submit
     UI->>API: POST /registrations/submit
     API->>RS: Submit registration
-    RS->>DB: Begin database transaction
     RS->>VS: Run final validations
 
-    VS->>DB: Check registration period
-    VS->>DB: Check prerequisites
-    VS->>DB: Check credit limits
-    VS->>DB: Check schedule conflicts
-    VS->>DB: Lock and verify section seats
+    VS->>Repo: Check registration period
+    Repo->>DB: Read registration-period item
+    VS->>Repo: Check prerequisites
+    Repo->>DB: Read prerequisite and academic-record items
+    VS->>Repo: Check credit limits
+    Repo->>DB: Read selected-course items
+    VS->>Repo: Check schedule conflicts
+    Repo->>DB: Read schedule items
+    VS->>Repo: Check section seats
+    Repo->>DB: Read section item
 
     alt All validations passed
         VS-->>RS: Registration valid
-        RS->>DB: Update status to Pending
+        RS->>Repo: Reserve or approve seats
+        Repo->>DB: Conditional update or transaction write
         RS->>NS: Create submission notification
-        RS->>DB: Commit transaction
         RS-->>API: Submission successful
         API-->>UI: 200 OK
         UI-->>Student: Display Pending status
     else Validation failed
         VS-->>RS: Validation errors
-        RS->>DB: Roll back transaction
         RS-->>API: Submission rejected
         API-->>UI: 409 or 422 response
         UI-->>Student: Display correction details
@@ -669,15 +710,18 @@ sequenceDiagram
     participant UI as React Frontend
     participant API as FastAPI API
     participant AS as Advisor Service
-    participant DB as PostgreSQL
+    participant Repo as Repository Layer
+    participant DB as DynamoDB
     participant NS as Notification Service
     participant AL as Audit Service
 
     Advisor->>UI: Open pending request
     UI->>API: GET /advisor/requests/{id}
     API->>AS: Retrieve request details
-    AS->>DB: Read student and registration data
-    DB-->>AS: Registration details
+    AS->>Repo: Read student and registration data
+    Repo->>DB: Query related items
+    DB-->>Repo: Registration details
+    Repo-->>AS: Registration details
     AS-->>API: Request data
     API-->>UI: Display request
 
@@ -686,13 +730,15 @@ sequenceDiagram
     API->>AS: Process decision
 
     alt Approved
-        AS->>DB: Update status to Approved
+        AS->>Repo: Update status to Approved
+        Repo->>DB: Update registration item
         AS->>NS: Notify student
         AS->>AL: Record approval
         AS-->>API: Approved result
     else Rejected
         AS->>AS: Validate rejection reason
-        AS->>DB: Update status to Rejected
+        AS->>Repo: Update status to Rejected
+        Repo->>DB: Update registration item
         AS->>NS: Notify student
         AS->>AL: Record rejection
         AS-->>API: Rejected result
@@ -712,21 +758,28 @@ sequenceDiagram
     participant API as FastAPI API
     participant WS as Waitlist Service
     participant VS as Validation Service
-    participant DB as PostgreSQL
+    participant Repo as Repository Layer
+    participant DB as DynamoDB
 
     Student->>UI: Click Join Waiting List
     UI->>API: POST /sections/{sectionId}/waitlist
     API->>WS: Create waitlist request
     WS->>VS: Validate eligibility
 
-    VS->>DB: Check prerequisites
-    VS->>DB: Check schedule conflicts
-    VS->>DB: Check duplicate waitlist
-    VS->>DB: Confirm section is full
+    VS->>Repo: Check prerequisites
+    Repo->>DB: Read prerequisite data
+    VS->>Repo: Check schedule conflicts
+    Repo->>DB: Read schedule data
+    VS->>Repo: Check duplicate waitlist
+    Repo->>DB: Query waitlist entries
+    VS->>Repo: Confirm section is full
+    Repo->>DB: Read section item
 
     alt Eligible
-        WS->>DB: Create active waitlist entry
-        WS->>DB: Calculate queue position
+        WS->>Repo: Create active waitlist entry
+        Repo->>DB: Put waitlist item
+        WS->>Repo: Calculate queue position
+        Repo->>DB: Query active waitlist entries
         WS-->>API: Waitlist information
         API-->>UI: 201 Created
         UI-->>Student: Display queue position
@@ -759,7 +812,7 @@ Therefore, seat availability must always be checked again during confirmation.
 
 Two students may attempt to take the final available seat at nearly the same time.
 
-Without transaction control:
+Without concurrency control:
 
 * Both students may see one available seat.
 * Both requests may pass the initial check.
@@ -767,25 +820,26 @@ Without transaction control:
 
 ---
 
-## 13.3 Concurrency Solution
+## 13.3 DynamoDB Concurrency Solution
 
-The final seat-allocation operation should:
+The final seat-allocation operation should use DynamoDB conditional writes or transaction writes.
 
-1. Begin a database transaction.
-2. Lock the selected section row.
-3. Count current approved or reserved registrations.
-4. Compare enrollment with capacity.
-5. Approve or reserve the seat only when capacity remains.
-6. Commit the transaction.
-7. Roll back when the seat is no longer available.
+A safe seat update should:
 
-PostgreSQL row-level locking may be used through:
+1. Read the selected section item.
+2. Check whether `available_seats` is greater than zero.
+3. Use a DynamoDB conditional update to reduce the seat count only if seats are still available.
+4. Create or update the related registration item.
+5. Return an error if the conditional update fails.
+6. Recalculate or re-fetch the latest seat value when needed.
 
-```sql
-SELECT ... FOR UPDATE
+Example condition:
+
+```text
+available_seats > 0
 ```
 
-This approach ensures only one transaction can allocate the final available seat.
+This approach prevents over-enrollment because DynamoDB will reject the update if the condition is no longer true.
 
 ---
 
@@ -902,10 +956,10 @@ Number of active entries ahead of the student + 1
 
 When a seat becomes available:
 
-1. Lock the section and relevant waiting-list records.
+1. Read the section item and active waiting-list entries.
 2. Retrieve active entries in queue order.
 3. Recheck the first student's eligibility.
-4. Promote the first eligible student.
+4. Promote the first eligible student using a conditional update or transaction write.
 5. Mark the entry as Promoted.
 6. Update the student's registration status.
 7. Notify the student.
@@ -965,20 +1019,22 @@ The API should return errors in a consistent format.
 
 ## 19.2 Common Error Codes
 
-| Error Code               | Meaning                                   |
-| ------------------------ | ----------------------------------------- |
-| INVALID_CREDENTIALS      | Login information is incorrect            |
-| UNAUTHORIZED             | Authentication is required                |
-| FORBIDDEN                | User role does not have permission        |
-| RESOURCE_NOT_FOUND       | Requested record does not exist           |
-| DUPLICATE_REGISTRATION   | Registration already exists               |
-| MISSING_PREREQUISITE     | Required course has not been completed    |
-| SCHEDULE_CONFLICT        | Class times overlap                       |
-| CREDIT_LIMIT_VIOLATION   | Credit total is outside the allowed range |
-| SECTION_FULL             | No direct seat is available               |
-| DUPLICATE_WAITLIST_ENTRY | Student is already waitlisted             |
-| REGISTRATION_CLOSED      | Registration period is not active         |
-| DATABASE_ERROR           | A database operation failed               |
+| Error Code | Meaning |
+| --- | --- |
+| INVALID_CREDENTIALS | Login information is incorrect |
+| UNAUTHORIZED | Authentication is required |
+| FORBIDDEN | User role does not have permission |
+| RESOURCE_NOT_FOUND | Requested record does not exist |
+| DUPLICATE_REGISTRATION | Registration already exists |
+| MISSING_PREREQUISITE | Required course has not been completed |
+| SCHEDULE_CONFLICT | Class times overlap |
+| CREDIT_LIMIT_VIOLATION | Credit total is outside the allowed range |
+| SECTION_FULL | No direct seat is available |
+| DUPLICATE_WAITLIST_ENTRY | Student is already waitlisted |
+| REGISTRATION_CLOSED | Registration period is not active |
+| DATABASE_ERROR | A database operation failed |
+| DYNAMODB_CONFIGURATION_ERROR | DynamoDB environment configuration is missing or invalid |
+| DYNAMODB_OPERATION_FAILED | DynamoDB read or write operation failed |
 
 ---
 
@@ -1014,9 +1070,11 @@ All incoming data must be validated using Pydantic schemas.
 
 ## 20.5 Database Security
 
-Database credentials must be stored in environment variables.
+Database configuration must be stored in environment variables.
 
-The application should use a restricted database account instead of a database superuser.
+The application should use AWS credentials with limited permissions. The backend should only receive the DynamoDB permissions required for the application, such as reading course records and updating registration-related records.
+
+Real AWS access keys, secret keys, and session tokens must not be committed to GitHub.
 
 ## 20.6 Sensitive Information
 
@@ -1024,7 +1082,7 @@ API errors must not expose:
 
 * Password hashes
 * Secret keys
-* Database credentials
+* AWS credentials
 * Internal file paths
 * Full stack traces
 
@@ -1069,23 +1127,22 @@ flowchart LR
         API[FastAPI Application Server]
     end
 
-    subgraph DatabaseLayer["Database Environment"]
-        DB[(PostgreSQL)]
-        Backup[(Database Backup)]
+    subgraph AWS["AWS Cloud Services"]
+        DB[(AWS DynamoDB)]
     end
 
     User -->|HTTPS| Web
     Web -->|HTTPS REST API| API
-    API -->|Secure Database Connection| DB
-    DB --> Backup
+    API -->|boto3 AWS SDK| DB
 ```
 
 A Docker-based deployment may include:
 
 * Frontend container
 * Backend container
-* PostgreSQL container
 * Reverse proxy container
+
+DynamoDB is managed by AWS and does not need to run as a local database container in production.
 
 A reverse proxy such as Nginx may provide:
 
@@ -1115,7 +1172,8 @@ The `docker-compose.yml` file may define:
 
 * `frontend`
 * `backend`
-* `database`
+
+DynamoDB is accessed as an external AWS service. For local development, DynamoDB Local may optionally be added later.
 
 Sensitive values must not be committed to GitHub.
 
@@ -1126,20 +1184,22 @@ Sensitive values must not be committed to GitHub.
 The system can support future growth through:
 
 * Stateless backend API instances
-* Database indexing
+* DynamoDB partition-key design
+* DynamoDB secondary indexes
 * Pagination
-* Connection pooling
 * Query optimization
 * Horizontal backend scaling
 * Caching frequently requested course data
 * Background processing for notifications
 
-Possible indexed fields include:
+Possible query fields include:
 
 * User email
 * Student number
 * Course code
-* Section semester
+* Department
+* Semester
+* Section ID
 * Registration student ID
 * Registration section ID
 * Registration status
@@ -1166,12 +1226,14 @@ Unit tests should cover:
 
 Integration tests should cover:
 
-* API and database interaction
+* API and DynamoDB interaction
 * Authentication
 * Registration submission
 * Advisor approval
 * Course dropping
 * Waiting-list promotion
+* DynamoDB configuration loading
+* DynamoDB conditional updates
 
 ## 25.3 Frontend Testing
 
@@ -1189,28 +1251,30 @@ Frontend tests should cover:
 End-to-end tests should simulate:
 
 1. Student login
-2. Course selection
-3. Final submission
-4. Advisor approval
-5. Student schedule viewing
+2. Course browsing and searching
+3. Course selection
+4. Final submission
+5. Advisor approval
+6. Student schedule viewing
 
 ---
 
 # 26. Major Design Decisions
 
-| Design Decision              | Reason                                                                 |
-| ---------------------------- | ---------------------------------------------------------------------- |
-| React frontend               | Supports reusable and interactive user-interface components            |
-| FastAPI backend              | Provides fast API development, validation, and automatic documentation |
-| PostgreSQL database          | Supports relational integrity and reliable transactions                |
-| REST API                     | Separates frontend and backend responsibilities                        |
-| JWT authentication           | Supports stateless API authentication                                  |
-| Service-layer business logic | Keeps API routes simple and maintainable                               |
-| SQLAlchemy ORM               | Reduces direct SQL duplication and supports PostgreSQL                 |
-| Database transactions        | Prevents inconsistent registration and seat allocation                 |
-| Dynamic waitlist position    | Prevents outdated queue numbers                                        |
-| Role-based access            | Protects student and administrative information                        |
-| Mermaid diagrams             | Allows diagrams to render directly in GitHub documentation             |
+| Design Decision | Reason |
+| --- | --- |
+| React frontend | Supports reusable and interactive user-interface components |
+| FastAPI backend | Provides fast API development, validation, and automatic documentation |
+| AWS DynamoDB database | Provides managed NoSQL storage and supports simple cloud-based database integration |
+| boto3 database access | Allows the Python backend to communicate with DynamoDB |
+| REST API | Separates frontend and backend responsibilities |
+| JWT authentication | Supports stateless API authentication |
+| Service-layer business logic | Keeps API routes simple and maintainable |
+| Repository-layer data access | Keeps DynamoDB operations separate from services and API routes |
+| DynamoDB conditional writes | Helps prevent inconsistent seat allocation |
+| Dynamic waitlist position | Prevents outdated queue numbers |
+| Role-based access | Protects student and administrative information |
+| Mermaid diagrams | Allows diagrams to render directly in GitHub documentation |
 
 ---
 
@@ -1223,8 +1287,8 @@ The system design assumes:
 * Users have reliable internet access.
 * The first version uses in-system notifications.
 * Advisor approval is required for final registration.
-* The database is the authoritative source for seat availability.
-* Registration and seat changes use database transactions.
+* DynamoDB is the authoritative source for course and registration data.
+* Seat changes use DynamoDB conditional operations where consistency is required.
 * The initial deployment may run on one backend server.
 * The architecture should support future expansion.
 
@@ -1232,7 +1296,7 @@ The system design assumes:
 
 # 28. Conclusion
 
-The CoursePilot system uses a layered web architecture with a React frontend, FastAPI backend, and PostgreSQL database.
+The CoursePilot system uses a layered web architecture with a React frontend, FastAPI backend, and AWS DynamoDB database.
 
 The design separates user-interface, API, business-logic, and data-access responsibilities. It also provides technical solutions for the system's most important challenges:
 
@@ -1247,4 +1311,4 @@ The design separates user-interface, API, business-logic, and data-access respon
 * Reliable error handling
 * Audit logging
 
-This system design will guide the detailed Technical Design Document, database schema, REST API implementation, testing, and deployment.
+This system design will guide the detailed Technical Design Document, DynamoDB data model, REST API implementation, testing, and deployment.

@@ -108,7 +108,7 @@ The core features of CoursePilot include:
 
 * **Frontend:** React
 * **Backend:** FastAPI
-* **Database:** PostgreSQL
+* **Database:** AWS DynamoDB
 * **API Architecture:** REST API
 * **Version Control:** Git and GitHub
 * **Project Management:** GitHub Issues and GitHub Projects
