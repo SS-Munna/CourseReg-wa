@@ -68,6 +68,30 @@ cd backend
 
 The setup script creates the `CoursePilotCourses` table with `course_id` as the partition key.
 
+## DynamoDB Seed Data
+
+The backend includes a seed script for loading sample course records into DynamoDB.
+
+The seed data includes courses from different departments, semesters, instructors, capacities, available-seat values, prerequisite examples, and schedule information.
+
+To validate the sample course records without writing to DynamoDB, run:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -c "from app.seed_courses import get_validated_courses; print(len(get_validated_courses()), 'seed courses validated successfully')"
+```
+
+To load the sample course records into DynamoDB, make sure the `CoursePilotCourses` table exists and AWS credentials are configured locally, then run:
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m app.seed_courses
+```
+
+The seed script uses the `DYNAMODB_COURSES_TABLE` environment variable to identify the course table.
+
+Do not commit AWS access keys, secret keys, session tokens, or a real `.env` file to GitHub.
+
 ## Current Backend Endpoints
 
 | Endpoint | Purpose |
