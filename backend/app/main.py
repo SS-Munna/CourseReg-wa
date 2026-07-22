@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_allowed_origins, settings
 from app.dynamodb import get_database_status
+from app.api.routes.courses import router as courses_router
+
 
 app = FastAPI(
     title=settings.app_name,
@@ -18,6 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(courses_router)
 
 @app.get("/")
 def read_root():
