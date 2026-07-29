@@ -11,7 +11,7 @@ class SectionSchedule(BaseModel):
 
 
 class CourseBase(BaseModel):
-    course_id: str = Field(..., description="Unique DynamoDB course identifier")
+    course_id: str = Field(..., description="Unique course identifier")
     code: str = Field(..., description="Course code, such as CSE 101")
     title: str = Field(..., description="Course title")
     department: str = Field(..., description="Department offering the course")
@@ -23,15 +23,9 @@ class CourseBase(BaseModel):
     is_mandatory: bool = Field(..., description="Whether the course is mandatory")
     level: Optional[str] = Field(default="Undergraduate", description="Course level")
     description: Optional[str] = Field(default=None, description="Course description")
-    prerequisites: List[str] = Field(
-        default_factory=list,
-        description="List of prerequisite course codes",
-    )
+    prerequisites: List[str] = Field(default_factory=list)
     section: Optional[str] = Field(default=None, description="Course section label")
-    schedule: List[SectionSchedule] = Field(
-        default_factory=list,
-        description="Course meeting schedule",
-    )
+    schedule: List[SectionSchedule] = Field(default_factory=list)
 
 
 class CourseCreate(CourseBase):
