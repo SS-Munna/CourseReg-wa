@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_allowed_origins, settings
-from app.dynamodb import get_database_status
 from app.api.routes.courses import router as courses_router
-
+from app.config import get_allowed_origins, settings
+from app.database import SessionLocal, get_database_status, init_database
+from app.seed_data import seed_database
 
 app = FastAPI(
     title=settings.app_name,
@@ -21,6 +21,17 @@ app.add_middleware(
 )
 
 app.include_router(courses_router)
+
+
+@app.on_event("startup")
+def startup_event():
+    init_database()
+    db = SessionLocal()
+    try:
+        seed_database(db)
+    finally:
+        db.close()
+
 
 @app.get("/")
 def read_root():

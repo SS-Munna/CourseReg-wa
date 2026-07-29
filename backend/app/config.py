@@ -11,12 +11,7 @@ class Settings:
     app_name: str = os.getenv("APP_NAME", "CoursePilot API")
     environment: str = os.getenv("ENVIRONMENT", "development")
     allowed_origins: str = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173")
-
-    aws_region: str = os.getenv("AWS_REGION", "us-east-1")
-    dynamodb_courses_table: str = os.getenv(
-        "DYNAMODB_COURSES_TABLE",
-        "CoursePilotCourses",
-    )
+    database_url: str = os.getenv("DATABASE_URL", "sqlite:///./coursepilot.db")
 
 
 settings = Settings()

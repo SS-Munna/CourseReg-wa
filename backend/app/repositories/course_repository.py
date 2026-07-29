@@ -1,128 +1,71 @@
-from decimal import Decimal
-from typing import Any, Optional
+from typing import Optional
 
-from botocore.exceptions import BotoCoreError, ClientError
+from sqlalchemy import or_
+from sqlalchemy.orm import Session
 
-from app.dynamodb import get_courses_table
+from app.models.course import Course
 from app.schemas.course import CourseResponse
 
 
 class CourseRepositoryError(RuntimeError):
-    """Raised when course data cannot be retrieved from DynamoDB."""
+    """Raised when course data cannot be retrieved from the database."""
 
 
-def convert_decimal_values(value: Any) -> Any:
-    if isinstance(value, list):
-        return [convert_decimal_values(item) for item in value]
-
-    if isinstance(value, dict):
-        return {key: convert_decimal_values(item) for key, item in value.items()}
-
-    if isinstance(value, Decimal):
-        if value % 1 == 0:
-            return int(value)
-        return float(value)
-
-    return value
-
-
-def normalize_text(value: Optional[str]) -> str:
-    return value.strip().lower() if value else ""
-
-
-def course_matches_filters(
-    course: dict,
-    search: Optional[str] = None,
-    department: Optional[str] = None,
-    semester: Optional[str] = None,
-    is_mandatory: Optional[bool] = None,
-    available_only: bool = False,
-) -> bool:
-    search_text = normalize_text(search)
-    department_filter = normalize_text(department)
-    semester_filter = normalize_text(semester)
-
-    course_code = normalize_text(course.get("code"))
-    course_title = normalize_text(course.get("title"))
-    course_department = normalize_text(course.get("department"))
-    course_semester = normalize_text(course.get("semester"))
-
-    if search_text and search_text not in course_code and search_text not in course_title:
-        return False
-
-    if department_filter and department_filter != course_department:
-        return False
-
-    if semester_filter and semester_filter != course_semester:
-        return False
-
-    if is_mandatory is not None and course.get("is_mandatory") != is_mandatory:
-        return False
-
-    if available_only and int(course.get("available_seats", 0)) <= 0:
-        return False
-
-    return True
-
-
-def filter_course_items(
-    courses: list[dict],
-    search: Optional[str] = None,
-    department: Optional[str] = None,
-    semester: Optional[str] = None,
-    is_mandatory: Optional[bool] = None,
-    available_only: bool = False,
-) -> list[dict]:
-    return [
-        course
-        for course in courses
-        if course_matches_filters(
-            course=course,
-            search=search,
-            department=department,
-            semester=semester,
-            is_mandatory=is_mandatory,
-            available_only=available_only,
-        )
-    ]
+def course_to_response(course: Course) -> CourseResponse:
+    return CourseResponse(
+        course_id=course.course_id,
+        code=course.code,
+        title=course.title,
+        department=course.department,
+        semester=course.semester,
+        instructor=course.instructor,
+        credits=course.credits,
+        capacity=course.capacity,
+        available_seats=course.available_seats,
+        is_mandatory=course.is_mandatory,
+        level=course.level,
+        description=course.description,
+        prerequisites=course.prerequisites or [],
+        section=course.section,
+        schedule=course.schedule or [],
+    )
 
 
 def list_courses(
+    db: Session,
     search: Optional[str] = None,
     department: Optional[str] = None,
     semester: Optional[str] = None,
     is_mandatory: Optional[bool] = None,
     available_only: bool = False,
 ) -> list[CourseResponse]:
-    table = get_courses_table()
-    course_items: list[dict] = []
-
     try:
-        response = table.scan()
+        query = db.query(Course)
 
-        while True:
-            items = response.get("Items", [])
+        if search:
+            search_text = f"%{search.strip()}%"
+            query = query.filter(
+                or_(
+                    Course.code.ilike(search_text),
+                    Course.title.ilike(search_text),
+                )
+            )
 
-            for item in items:
-                normalized_item = convert_decimal_values(item)
-                course_items.append(normalized_item)
+        if department:
+            query = query.filter(Course.department == department)
 
-            last_key = response.get("LastEvaluatedKey")
-            if not last_key:
-                break
+        if semester:
+            query = query.filter(Course.semester == semester)
 
-            response = table.scan(ExclusiveStartKey=last_key)
+        if is_mandatory is not None:
+            query = query.filter(Course.is_mandatory == is_mandatory)
 
-        filtered_items = filter_course_items(
-            courses=course_items,
-            search=search,
-            department=department,
-            semester=semester,
-            is_mandatory=is_mandatory,
-            available_only=available_only,
-        )
+        if available_only:
+            query = query.filter(Course.available_seats > 0)
 
-        return [CourseResponse(**course) for course in filtered_items]
+        courses = query.order_by(Course.code).all()
 
-    except (BotoCoreError, ClientError) as error:
+        return [course_to_response(course) for course in courses]
+
+    except Exception as error:
         raise CourseRepositoryError(str(error)) from error

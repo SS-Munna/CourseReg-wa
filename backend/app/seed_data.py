@@ -1,7 +1,7 @@
-from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
+from sqlalchemy.orm import Session
 
-from app.dynamodb import get_courses_table
-from app.schemas.course import CourseCreate
+from app.models.course import Course
+from app.models.user import User
 
 
 SAMPLE_COURSES = [
@@ -176,49 +176,23 @@ SAMPLE_COURSES = [
 ]
 
 
-def to_item(course: CourseCreate) -> dict:
-    if hasattr(course, "model_dump"):
-        return course.model_dump()
-    return course.dict()
+DEMO_USERS = [
+    {
+        "name": "Demo Student",
+        "email": "student@coursepilot.com",
+        "password": "student123",
+        "role": "student",
+    }
+]
 
 
-def get_validated_courses() -> list[dict]:
-    return [to_item(CourseCreate(**course)) for course in SAMPLE_COURSES]
+def seed_database(db: Session) -> None:
+    if db.query(Course).count() == 0:
+        for course_data in SAMPLE_COURSES:
+            db.add(Course(**course_data))
 
+    if db.query(User).count() == 0:
+        for user_data in DEMO_USERS:
+            db.add(User(**user_data))
 
-def seed_courses() -> int:
-    table = get_courses_table()
-    courses = get_validated_courses()
-
-    with table.batch_writer(overwrite_by_pkeys=["course_id"]) as batch:
-        for course in courses:
-            batch.put_item(Item=course)
-
-    return len(courses)
-
-
-def main() -> None:
-    print("CoursePilot DynamoDB seed data")
-    print(f"Prepared course records: {len(SAMPLE_COURSES)}")
-
-    try:
-        courses = get_validated_courses()
-
-        print("Validated sample course records:")
-        for course in courses:
-            print(f"- {course['code']}: {course['title']}")
-
-        inserted_count = seed_courses()
-        print(f"Seed completed. Inserted/updated {inserted_count} course records.")
-
-    except NoCredentialsError:
-        print("AWS credentials were not found.")
-        print("Configure AWS credentials locally before running the seed script.")
-
-    except (BotoCoreError, ClientError) as error:
-        print("DynamoDB seed operation failed.")
-        print(str(error))
-
-
-if __name__ == "__main__":
-    main()
+    db.commit()
