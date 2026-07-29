@@ -132,6 +132,21 @@ select:focus-visible {
   background: #1e293b;
 }
 
+.logout-button {
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.logout-button:hover {
+  background: #ffe4e6;
+}
+
 .hero {
   display: flex;
   justify-content: space-between;
@@ -600,6 +615,16 @@ select:focus-visible {
   background: #cbd5e1;
 }
 
+:root[data-theme='dark'] .logout-button {
+  border-color: rgba(248, 113, 113, 0.32);
+  background: rgba(127, 29, 29, 0.28);
+  color: #fecaca;
+}
+
+:root[data-theme='dark'] .logout-button:hover {
+  background: rgba(127, 29, 29, 0.42);
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;
@@ -641,7 +666,8 @@ select:focus-visible {
   }
 
   .topbar-chip,
-  .theme-toggle {
+  .theme-toggle,
+  .logout-button {
     flex: 1;
     justify-content: center;
   }

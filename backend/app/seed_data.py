@@ -176,14 +176,7 @@ SAMPLE_COURSES = [
 ]
 
 
-DEMO_USERS = [
-    {
-        "name": "Demo Student",
-        "email": "student@coursepilot.com",
-        "password": "student123",
-        "role": "student",
-    }
-]
+DEMO_USERS = []
 
 
 def seed_database(db: Session) -> None:

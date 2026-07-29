@@ -1,10 +1,7 @@
-from fastapi import Depends, FastAPI, Header, HTTPException, status
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.routes.courses import router as courses_router
-from app.config import get_allowed_origins, settings
-from app.database import SessionLocal, get_database_status, get_db, init_database
+from app.database import get_db
 from app.repositories.user_repository import (
     create_user,
     find_user_by_email,
@@ -12,57 +9,8 @@ from app.repositories.user_repository import (
     verify_user_credentials,
 )
 from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserResponse
-from app.seed_data import seed_database
 
-app = FastAPI(
-    title=settings.app_name,
-    version="0.1.0",
-    description="Base FastAPI backend service for CoursePilot.",
-)
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=get_allowed_origins(),
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-app.include_router(courses_router)
-
-
-@app.on_event("startup")
-def startup_event():
-    init_database()
-    db = SessionLocal()
-    try:
-        seed_database(db)
-    finally:
-        db.close()
-
-
-@app.get("/")
-def read_root():
-    return {
-        "message": "Welcome to the CoursePilot API",
-        "docs": "/docs",
-        "health": "/health",
-        "database_status": "/api/database/status",
-    }
-
-
-@app.get("/health")
-def health_check():
-    return {
-        "status": "ok",
-        "service": settings.app_name,
-        "environment": settings.environment,
-    }
-
-
-@app.get("/api/database/status")
-def database_status():
-    return get_database_status()
+router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 
 def make_token(user_id: int) -> str:
@@ -84,12 +32,7 @@ def get_user_id_from_token(authorization: str | None) -> int | None:
         return None
 
 
-@app.post(
-    "/api/auth/register",
-    response_model=AuthResponse,
-    status_code=status.HTTP_201_CREATED,
-    tags=["Authentication"],
-)
+@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
 def register_student(payload: RegisterRequest, db: Session = Depends(get_db)):
     existing_user = find_user_by_email(db, payload.email)
 
@@ -117,11 +60,7 @@ def register_student(payload: RegisterRequest, db: Session = Depends(get_db)):
     )
 
 
-@app.post(
-    "/api/auth/login",
-    response_model=AuthResponse,
-    tags=["Authentication"],
-)
+@router.post("/login", response_model=AuthResponse)
 def login_student(payload: LoginRequest, db: Session = Depends(get_db)):
     user = verify_user_credentials(
         db=db,
@@ -146,11 +85,7 @@ def login_student(payload: LoginRequest, db: Session = Depends(get_db)):
     )
 
 
-@app.get(
-    "/api/auth/me",
-    response_model=UserResponse,
-    tags=["Authentication"],
-)
+@router.get("/me", response_model=UserResponse)
 def get_current_student(
     authorization: str | None = Header(default=None),
     db: Session = Depends(get_db),

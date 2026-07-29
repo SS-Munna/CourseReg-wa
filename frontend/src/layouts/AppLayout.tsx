@@ -1,36 +1,56 @@
 import type { ReactNode } from 'react'
+
+import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
 type AppLayoutProps = {
   children: ReactNode
 }
 
-function AppLayout({ children }: AppLayoutProps) {
+export default function AppLayout({ children }: AppLayoutProps) {
+  const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
 
   return (
-    <main className="page">
+    <div className="page">
       <header className="topbar">
         <div className="brand-block">
-          <span className="brand-mark">C</span>
+          <div className="brand-mark">C</div>
           <div className="brand-text">
-            <div className="brand">CoursePilot</div>
-            <p>Student Registration Portal</p>
+            <strong>CoursePilot</strong>
+            <span>Student Registration Portal</span>
           </div>
         </div>
 
         <div className="topbar-actions">
+          {user && (
+            <span className="topbar-chip">
+              {user.name}
+            </span>
+          )}
+
           <span className="topbar-chip">Student View</span>
           <span className="topbar-chip">Fall 2026</span>
-          <button type="button" className="theme-toggle" onClick={toggleTheme}>
-            {theme === 'light' ? 'Dark mode' : 'Day mode'}
+
+          <button
+            className="theme-toggle"
+            type="button"
+            onClick={toggleTheme}
+          >
+            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+          </button>
+
+          <button
+            className="logout-button"
+            type="button"
+            onClick={logout}
+          >
+            Logout
           </button>
         </div>
       </header>
 
       {children}
-    </main>
+    </div>
   )
 }
-
-export default AppLayout
