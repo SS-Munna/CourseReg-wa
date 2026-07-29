@@ -3,3 +3,4 @@ uvicorn[standard]
 python-dotenv
 SQLAlchemy
 email-validator
+psycopg2-binary
