@@ -37,5 +37,4 @@ def get_database_status() -> dict:
     return {
         "status": "connected",
         "database": "SQLAlchemy relational database",
-        "database_url": settings.database_url,
     }
