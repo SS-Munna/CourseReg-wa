@@ -34,15 +34,23 @@ Successful authentication responses use the same `success` and `data`
 envelope as the course catalogue and status endpoints. The frontend reads the
 updated authentication envelope without changing session behavior.
 
-## API Route
+## API Routes
 
 GET /api/courses
 
 The route receives optional query parameters and calls the course repository.
 
+GET /api/courses/{course_id}/availability
+
+The availability route returns the selected offering's instructor, schedule,
+rooms, capacity, approved enrollment, calculated available seats, and full
+state. Unknown public course identifiers return the shared `404` error shape.
+
 ## Repository Design
 
 The repository uses SQLAlchemy queries to retrieve and filter course records.
+It uses a correlated count of approved registration rows for each section, so
+catalogue and detail responses do not rely on a cached seat number.
 
 Supported filters:
 
@@ -99,3 +107,9 @@ API-contract tests verify success envelopes, pagination calculations, invalid
 pagination values, HTTP status and header preservation, field-level request
 validation details, safe database failures, safe unexpected failures, and the
 shared schemas published through OpenAPI.
+
+Section-availability tests create registrations in every supported state and
+verify that only approved records count toward enrollment. They also verify
+immediate recalculation after the final seat is approved, dynamic
+`available_only` filtering, schedule and room output, the shared not-found
+response, safe repository failures, and the OpenAPI response schema.

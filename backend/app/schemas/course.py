@@ -71,6 +71,24 @@ class CourseResponse(CourseBase):
     pass
 
 
+class SectionAvailability(CourseResponse):
+    enrollment: int = Field(
+        ...,
+        ge=0,
+        description="Number of approved registrations",
+    )
+    is_full: bool = Field(
+        ...,
+        description="Whether no direct-registration seat remains",
+    )
+
+
+class SectionAvailabilityResponse(
+    SuccessResponse[SectionAvailability]
+):
+    pass
+
+
 class CourseUpdate(BaseModel):
     title: Optional[str] = None
     department: Optional[str] = None
