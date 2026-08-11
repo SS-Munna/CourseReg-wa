@@ -1,12 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.authorization import get_current_user
 from app.database import get_db
+from app.models.user import User
 from app.repositories.user_repository import (
     create_user,
     find_user_by_email,
-    find_user_by_id,
     verify_user_credentials,
 )
 from app.schemas.auth import (
@@ -15,22 +15,10 @@ from app.schemas.auth import (
     RegisterRequest,
     UserResponse,
 )
-from app.security import (
-    AccessTokenError,
-    create_access_token,
-    get_user_id_from_access_token,
-)
+from app.security import create_access_token
+
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
-bearer_scheme = HTTPBearer(auto_error=False)
-
-
-def unauthorized_exception(detail: str) -> HTTPException:
-    return HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=detail,
-        headers={"WWW-Authenticate": "Bearer"},
-    )
 
 
 @router.post(
@@ -98,36 +86,11 @@ def login_student(
 
 @router.get("/me", response_model=UserResponse)
 def get_current_student(
-    credentials: HTTPAuthorizationCredentials | None = Depends(
-        bearer_scheme
-    ),
-    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
-    if credentials is None:
-        raise unauthorized_exception(
-            "A Bearer access token is required."
-        )
-
-    try:
-        user_id = get_user_id_from_access_token(
-            credentials.credentials
-        )
-    except AccessTokenError as error:
-        raise unauthorized_exception(
-            "The access token is invalid or expired."
-        ) from error
-
-    user = find_user_by_id(db, user_id)
-
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="User not found.",
-        )
-
     return UserResponse(
-        id=user.id,
-        name=user.name,
-        email=user.email,
-        role=user.role,
+        id=current_user.id,
+        name=current_user.name,
+        email=current_user.email,
+        role=current_user.role,
     )

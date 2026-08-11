@@ -144,3 +144,25 @@ Optional filters:
 - `semester`
 - `is_mandatory`
 - `available_only`
+
+
+## Role-based access control
+
+The backend recognizes four roles:
+
+- `student`
+- `advisor`
+- `department-admin`
+- `system-admin`
+
+Public registration always creates a student account; users cannot select a privileged role during registration.
+
+JWTs identify users but do not store authorization decisions. For every protected request, the backend reloads the user from the database and checks the account’s current role.
+
+Authorization utilities are provided in `app/authorization.py`:
+
+- `get_current_user` authenticates the request.
+- `require_roles(...)` restricts an endpoint to selected roles.
+- `ensure_owner_or_roles(...)` allows access through resource ownership or an explicitly permitted administrative role.
+
+Authentication failures return `401 Unauthorized`. Authenticated users lacking the required role or ownership receive `403 Forbidden`. Ownership must be verified by the resource route; having the advisor role alone does not grant access to every student.
