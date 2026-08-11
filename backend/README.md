@@ -279,6 +279,35 @@ Application checks provide an immediate duplicate response, while the named
 for concurrent requests. Duplicate selections return
 `409 DUPLICATE_SELECTION` without creating a second row.
 
+Every selection list, create, and remove response also includes a
+`credit_validation` object with the updated selected credits, program minimum
+and maximum, validation state, shortfall or excess, and a clear message. This
+lets a client refresh the displayed total from the same mutation response.
+
+## Credit validation API
+
+Authenticated students can inspect or enforce their current program credit
+range with:
+
+```text
+GET /api/selections/credit-validation
+POST /api/selections/credit-validation
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+`GET` always returns the current calculation. `POST` performs the final-load
+check without changing registration states. A valid inclusive boundary
+returns `200`; a load below the minimum returns
+`422 CREDIT_LOAD_BELOW_MINIMUM`, and a load above the maximum returns
+`422 CREDIT_LOAD_ABOVE_MAXIMUM`. Error details include the same structured
+calculation as the read response.
+
+Draft, pending, and approved registrations count toward the active load.
+Rejected and dropped registrations do not. Limits come from the student's
+program, and course credits are summed from the current registration rows, so
+the result is not stored or cached. The reusable `require_valid_credit_load`
+guard is intended for the final submission transaction in Issue #27.
+
 ## Course data integrity
 
 Each current `courses` row represents one course section in one semester.
@@ -374,9 +403,9 @@ the registration models' `section_id` foreign key points to the internal
 `course_id`.
 
 Draft registrations are created, listed, and removed through the protected
-selection API. Credit-limit validation, schedule-conflict checks, final
-submission, notifications, and audit-log automation remain separate workflow
-features.
+selection API. Credit-limit validation is available through the protected
+credit-validation API. Schedule-conflict checks, final submission,
+notifications, and audit-log automation remain separate workflow features.
 
 ## Prerequisite and completed-course models
 

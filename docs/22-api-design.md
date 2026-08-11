@@ -268,6 +268,8 @@ values return `422`, and database failures return a safe `500` response.
 ```text
 GET /api/selections
 POST /api/selections
+GET /api/selections/credit-validation
+POST /api/selections/credit-validation
 DELETE /api/selections/{course_id}
 Authorization: Bearer <signed-jwt-access-token>
 ```
@@ -326,9 +328,42 @@ foreign draft returns `404 DRAFT_SELECTION_NOT_FOUND`, and a matching
 non-draft registration returns `409 SELECTION_NOT_DRAFT`.
 
 Current available seats in selection responses are calculated from approved
-registrations. Draft records do not reduce the seat count. Credit-limit,
-schedule-conflict, and final-submission validation remain separate workflow
-stages.
+registrations. Draft records do not reduce the seat count. Each selection
+list, create, and remove response also includes the current
+`credit_validation` object so clients can update the displayed credit total
+from the same response.
+
+## Credit Validation API
+
+`GET /api/selections/credit-validation` returns the authenticated student's
+current active credit load and program limits:
+
+```json
+{
+  "success": true,
+  "data": {
+    "selected_credits": 12,
+    "minimum_credit": 9,
+    "maximum_credit": 18,
+    "validation_status": "within_range",
+    "is_valid": true,
+    "minimum_shortfall": 0,
+    "maximum_excess": 0,
+    "message": "The selected credit load is within the allowed range."
+  }
+}
+```
+
+Draft, pending, and approved registrations count; rejected and dropped rows
+do not. The total and limits are database-derived on every request.
+
+`POST /api/selections/credit-validation` runs the reusable final-load guard
+without submitting or changing any registration. A valid inclusive range
+returns the same `200` response. Below-minimum and above-maximum loads return
+`422 CREDIT_LOAD_BELOW_MINIMUM` or `422 CREDIT_LOAD_ABOVE_MAXIMUM`; `details`
+contains the complete calculation, including the current total and exact
+shortfall or excess. The final registration transaction in Issue #27 will
+call this same guard before moving draft records to pending.
 
 ## Status Codes
 

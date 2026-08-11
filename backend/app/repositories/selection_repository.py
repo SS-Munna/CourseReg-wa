@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 
 from app.models.course import Course
 from app.models.registration import Registration, RegistrationStatus
+from app.repositories.credit_repository import (
+    CreditRepositoryError,
+    get_credit_load_validation,
+)
 from app.repositories.course_repository import (
     approved_enrollment_expression,
     course_to_response,
@@ -15,6 +19,7 @@ from app.repositories.prerequisite_repository import (
     PrerequisitesNotMetError,
     require_prerequisites_met,
 )
+from app.schemas.credit import CreditLoadValidation
 from app.schemas.selection import DraftSelection, DraftSelectionRemoved
 
 
@@ -123,7 +128,7 @@ def add_draft_selection(
     *,
     student_id: UUID,
     course_id: str,
-) -> DraftSelection:
+) -> tuple[DraftSelection, CreditLoadValidation]:
     try:
         course = (
             db.query(Course)
@@ -170,9 +175,13 @@ def add_draft_selection(
                 section_id=course.id,
             ),
         )
+        credit_validation = get_credit_load_validation(
+            db,
+            student_id=student_id,
+        )
         db.commit()
 
-        return response
+        return response, credit_validation
 
     except (
         DuplicateSelectionError,
@@ -184,7 +193,10 @@ def add_draft_selection(
     except IntegrityError:
         db.rollback()
         raise
-    except PrerequisiteRepositoryError as error:
+    except (
+        CreditRepositoryError,
+        PrerequisiteRepositoryError,
+    ) as error:
         db.rollback()
         raise SelectionRepositoryError(str(error)) from error
     except Exception as error:
@@ -197,7 +209,7 @@ def remove_draft_selection(
     *,
     student_id: UUID,
     course_id: str,
-) -> DraftSelectionRemoved:
+) -> tuple[DraftSelectionRemoved, CreditLoadValidation]:
     try:
         row = (
             db.query(Registration, Course)
@@ -227,9 +239,14 @@ def remove_draft_selection(
             course_id=course.course_id,
         )
         db.delete(registration)
+        db.flush()
+        credit_validation = get_credit_load_validation(
+            db,
+            student_id=student_id,
+        )
         db.commit()
 
-        return response
+        return response, credit_validation
 
     except (SectionNotFoundError, SelectionNotDraftError):
         db.rollback()

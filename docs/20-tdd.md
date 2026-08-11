@@ -57,6 +57,10 @@ GET /api/selections
 
 POST /api/selections
 
+GET /api/selections/credit-validation
+
+POST /api/selections/credit-validation
+
 DELETE /api/selections/{course_id}
 
 The protected selection routes derive the student profile from the JWT user,
@@ -64,6 +68,12 @@ list only draft registrations, add an eligible section, and delete only an
 owned draft. They return stable errors for missing profiles or sections,
 duplicate records, unmet prerequisites, non-draft removal attempts, and safe
 repository failures.
+
+Selection list and mutation responses include the current credit calculation.
+The credit-validation read route reports the active total and configured
+program range. Its validation action uses the same reusable guard that final
+submission will call, returning a structured `422` when the total is below or
+above the inclusive limits without changing any registration status.
 
 ## Repository Design
 
@@ -85,6 +95,13 @@ checks for an existing student/section row, invokes the prerequisite guard,
 and commits one draft transaction. The database unique constraint resolves
 concurrent duplicate attempts. Removal scopes its lookup to the authenticated
 student and refuses every non-draft state.
+
+The credit repository sums course credits for the authenticated student's
+draft, pending, and approved registrations. It excludes rejected and dropped
+records, loads the minimum and maximum from the student's program, and returns
+a structured below-minimum, within-range, or above-maximum result. Selection
+mutations calculate that result inside their transaction so a response cannot
+report a failed total after persisting an otherwise successful mutation.
 
 Supported filters:
 
@@ -166,6 +183,12 @@ output, ownership isolation, non-draft protection, student-only access,
 missing profiles and sections, invalid request bodies, unmet prerequisite
 rollback, duplicate prevention, safe database failures, shared constraint
 translation, OpenAPI schemas, and PostgreSQL query compilation.
+
+Credit-validation tests verify recalculation after both add and remove,
+inclusive minimum and maximum boundaries, flexible over-limit drafts, clear
+blocking responses, student isolation, active-state inclusion, rejected and
+dropped exclusion, protected-route behavior, safe repository failures, the
+reusable final-load guard, OpenAPI schemas, and PostgreSQL query compilation.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an
