@@ -82,6 +82,43 @@ CONSTRAINT_RESPONSES = {
         code="INVALID_COURSE_SECTION",
         message="Course section cannot be blank.",
     ),
+    "uq_course_prerequisite_course_required": ConstraintResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        code="DUPLICATE_COURSE_PREREQUISITE",
+        message="This prerequisite is already assigned to the course.",
+    ),
+    "ck_course_prerequisite_not_self": ConstraintResponse(
+        status_code=422,
+        code="INVALID_COURSE_PREREQUISITE",
+        message="A course cannot be its own prerequisite.",
+    ),
+    "ck_course_prerequisite_minimum_grade": ConstraintResponse(
+        status_code=422,
+        code="INVALID_MINIMUM_GRADE",
+        message="The prerequisite minimum grade is not supported.",
+    ),
+    "uq_completed_course_student_course": ConstraintResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        code="DUPLICATE_COMPLETED_COURSE",
+        message=(
+            "This completed-course record already exists for the student."
+        ),
+    ),
+    "ck_completed_course_grade": ConstraintResponse(
+        status_code=422,
+        code="INVALID_COMPLETED_COURSE_GRADE",
+        message="The completed-course grade is not supported.",
+    ),
+    "ck_completed_course_status": ConstraintResponse(
+        status_code=422,
+        code="INVALID_COMPLETION_STATUS",
+        message="The completed-course status is not supported.",
+    ),
+    "ck_completed_course_completion_date": ConstraintResponse(
+        status_code=422,
+        code="INVALID_COMPLETION_DATE",
+        message="A completed course must include its completion date.",
+    ),
 }
 
 
@@ -92,6 +129,14 @@ SQLITE_CONSTRAINT_SIGNATURES = {
         "courses.section"
     ): "uq_courses_code_semester_section",
     "not null constraint failed: courses.section": "ck_courses_section_not_blank",
+    (
+        "unique constraint failed: course_prerequisites.course_id, "
+        "course_prerequisites.prerequisite_course_id"
+    ): "uq_course_prerequisite_course_required",
+    (
+        "unique constraint failed: completed_courses.student_id, "
+        "completed_courses.course_id"
+    ): "uq_completed_course_student_course",
 }
 
 

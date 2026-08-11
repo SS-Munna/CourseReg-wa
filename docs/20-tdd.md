@@ -46,11 +46,26 @@ The availability route returns the selected offering's instructor, schedule,
 rooms, capacity, approved enrollment, calculated available seats, and full
 state. Unknown public course identifiers return the shared `404` error shape.
 
+GET /api/courses/{course_id}/prerequisite-validation
+
+The protected student route loads normalized prerequisite rules and completed
+course records. It returns eligibility plus every satisfied or missing rule,
+including minimum and earned grades. Missing student profiles and courses use
+shared `404` errors; authentication and authorization use `401` and `403`.
+
 ## Repository Design
 
-The repository uses SQLAlchemy queries to retrieve and filter course records.
-It uses a correlated count of approved registration rows for each section, so
-catalogue and detail responses do not rely on a cached seat number.
+The course repository uses SQLAlchemy queries to retrieve and filter course
+records. It uses a correlated count of approved registration rows for each
+section, so catalogue and detail responses do not rely on a cached seat
+number.
+
+The prerequisite repository merges normalized `course_prerequisites` rows
+with existing JSON prerequisite codes, then matches completed records by
+normalized course code. This allows a successful historical offering to
+satisfy a current rule. It selects the student's best completed grade and
+returns a structured reason for each unmet rule. A reusable guard raises
+`PrerequisitesNotMetError` before a caller persists an invalid selection.
 
 Supported filters:
 
@@ -64,8 +79,9 @@ Supported filters:
 
 The SQLAlchemy model layer includes users, departments, programs, students,
 advisors, instructors, semesters, registrations, waitlist entries,
-notifications, audit logs, and the existing course-catalogue model. Core user,
-academic, registration, and activity records use UUID primary keys.
+notifications, audit logs, course prerequisites, completed courses, and the
+existing course-catalogue model. Core user, academic, registration, activity,
+prerequisite, and completed-course records use UUID primary keys.
 Relationships connect user accounts to optional academic profiles,
 departments to their programs and staff, programs to students, advisors to
 their assigned students and reviewed registrations, and students to their
@@ -82,6 +98,11 @@ fields, positive credits and capacity, and an available-seat range from zero
 through capacity. Explicit indexes cover course code, title, department, and
 semester. FastAPI translates known integrity violations into safe `409` or
 `422` responses without exposing raw database details.
+
+Prerequisite relationships cannot duplicate or reference the same course on
+both sides. Completed-course records are unique per student and course
+offering. Supported letter grades and completion states are constrained in
+both SQLite and PostgreSQL.
 
 ## Seed Data
 
@@ -113,6 +134,13 @@ verify that only approved records count toward enrollment. They also verify
 immediate recalculation after the final seat is approved, dynamic
 `available_only` filtering, schedule and room output, the shared not-found
 response, safe repository failures, and the OpenAPI response schema.
+
+Prerequisite tests inspect tables, foreign keys, relationships, named
+constraints, UUIDs, indexes, and PostgreSQL DDL. API tests cover no-rule
+eligibility, missing courses, insufficient minimum grades, historical
+offerings, ignored in-progress records, legacy JSON rules, student-only
+authorization, safe database failures, OpenAPI schemas, PostgreSQL query
+compilation, and the blocking selection guard.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an

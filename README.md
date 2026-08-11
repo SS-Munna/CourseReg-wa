@@ -2,7 +2,7 @@
 
 CoursePilot is a student course registration and course catalogue web application.
 
-The current implemented feature is the student course catalogue with search and filtering. Students can view available courses, search by course code or title, filter by department and semester, and check live section availability calculated from approved registrations.
+The current implemented feature is the student course catalogue with search and filtering. Students can view available courses, search by course code or title, filter by department and semester, check live section availability calculated from approved registrations, and validate prerequisite completion and minimum grades.
 
 ## Tech Stack
 
@@ -23,6 +23,8 @@ React Course Catalogue Page -> frontend API service -> FastAPI endpoint -> SQLAl
 GET /api/courses
 
 GET /api/courses/{course_id}/availability
+
+GET /api/courses/{course_id}/prerequisite-validation
 
 Optional query parameters:
 
@@ -49,6 +51,7 @@ Open:
 - http://127.0.0.1:8000/api/database/status
 - http://127.0.0.1:8000/api/courses
 - http://127.0.0.1:8000/api/courses/cse-101/availability
+- http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
 - http://127.0.0.1:8000/docs
 
 ## Frontend Local Setup
@@ -71,10 +74,13 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 ## Current Backend Structure
 
 - backend/app/database.py
+- backend/app/models/completed_course.py
 - backend/app/models/course.py
+- backend/app/models/course_prerequisite.py
 - backend/app/models/user.py
 - backend/app/schemas/course.py
 - backend/app/repositories/course_repository.py
+- backend/app/repositories/prerequisite_repository.py
 - backend/app/api/routes/courses.py
 - backend/app/seed_data.py
 - backend/app/main.py

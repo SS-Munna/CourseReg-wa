@@ -70,3 +70,7 @@ class Student(Base):
         "WaitlistEntry",
         back_populates="student",
     )
+    completed_courses = relationship(
+        "CompletedCourse",
+        back_populates="student",
+    )
