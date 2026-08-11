@@ -1,29 +1,136 @@
-﻿# API Design
+# API Design
 
 ## Overview
 
-The CoursePilot API connects the React frontend with the FastAPI backend and SQLAlchemy database layer.
+The CoursePilot API connects the React frontend with the FastAPI backend and
+SQLAlchemy database layer. JSON application endpoints use the shared response
+contract below. FastAPI's OpenAPI and documentation endpoints retain their
+framework-defined formats.
+
+## Shared Response Contract
+
+### Successful response
+
+Every successful response contains `success: true` and a `data` value. The
+value may be an object, a list, or a scalar appropriate to the endpoint.
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "ready"
+  }
+}
+```
+
+Authentication results follow the same structure:
+
+```json
+{
+  "success": true,
+  "data": {
+    "token": "<signed-jwt-access-token>",
+    "user": {
+      "id": "73f37649-8365-4b9d-a92e-584ebaabd0c7",
+      "name": "New Student",
+      "email": "student@example.com",
+      "role": "student"
+    }
+  }
+}
+```
+
+### Error response
+
+Every error contains `success: false` and an `error` object. Clients should
+use `error.code` for program logic and `error.message` for a user-facing
+explanation. The optional `details` value supplies safe structured context.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "DUPLICATE_COURSE_ID",
+    "message": "A course with this course ID already exists."
+  }
+}
+```
+
+Unhandled server and database errors never include statements, connection
+details, credentials, or stored values.
+
+### Request validation error
+
+Invalid body, path, and query values return HTTP `422`. Each issue identifies
+its request field, validation message, and machine-readable validation type.
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "REQUEST_VALIDATION_ERROR",
+    "message": "The request contains invalid values.",
+    "details": [
+      {
+        "field": "body.password",
+        "message": "String should have at least 6 characters",
+        "type": "string_too_short"
+      }
+    ]
+  }
+}
+```
+
+### Paginated response
+
+Endpoints that paginate collections use the shared `pagination` object.
+`total_pages` is zero when `total_items` is zero.
+
+```json
+{
+  "success": true,
+  "data": [],
+  "pagination": {
+    "page": 1,
+    "page_size": 20,
+    "total_items": 0,
+    "total_pages": 0
+  }
+}
+```
+
+| Field | Rule |
+|---|---|
+| `page` | One-based page number; minimum `1` |
+| `page_size` | Requested items per page; minimum `1` |
+| `total_items` | Number of matching records; minimum `0` |
+| `total_pages` | Ceiling of `total_items / page_size` |
 
 ## Course Catalogue API
 
+```text
 GET /api/courses
+```
 
-## Query Parameters
+### Query Parameters
 
 | Parameter | Type | Description |
 |---|---|---|
-| search | string | Search by course code or title |
-| department | string | Filter by department |
-| semester | string | Filter by semester |
-| is_mandatory | boolean | Filter mandatory or elective courses |
-| available_only | boolean | Show only courses with available seats |
+| `search` | string | Search by course code or title |
+| `department` | string | Filter by department |
+| `semester` | string | Filter by semester |
+| `is_mandatory` | boolean | Filter mandatory or elective courses |
+| `available_only` | boolean | Show only courses with available seats |
 
-## Example Request
+Example request:
 
+```text
 GET /api/courses?search=CSE&department=CSE&available_only=true
+```
 
-## Example Response
+Example response:
 
+```json
 {
   "success": true,
   "data": [
@@ -46,34 +153,29 @@ GET /api/courses?search=CSE&department=CSE&available_only=true
     }
   ]
 }
+```
 
 ## Status Codes
 
 | Status Code | Meaning |
 |---|---|
-| 200 | Request successful |
-| 409 | A unique database record already exists |
-| 422 | Invalid query parameter, course, or section value |
-| 500 | Database operation failed |
+| `200` | Request successful |
+| `201` | Resource created successfully |
+| `400` | Request cannot be processed |
+| `401` | Authentication is required or invalid |
+| `403` | Authenticated user lacks permission |
+| `404` | Resource or route not found |
+| `409` | Request conflicts with an existing record |
+| `422` | Request or stored value violates validation rules |
+| `500` | Unexpected server or database operation failure |
 
 ## Database Constraint Errors
 
-SQLAlchemy integrity violations use a stable `detail` object. Known duplicate
-course IDs and duplicate code/semester/section offerings return `409` with
-`DUPLICATE_COURSE_ID` or `DUPLICATE_COURSE_SECTION`. Invalid credits, capacity,
-available seats, or required text values return `422` with a field-specific
-code and message.
+Known duplicate course IDs and duplicate code/semester/section offerings
+return `409` with `DUPLICATE_COURSE_ID` or
+`DUPLICATE_COURSE_SECTION`. Invalid credits, capacity, available seats, or
+required text values return `422` with a field-specific code and message.
 
-Example:
-
-```json
-{
-  "detail": {
-    "code": "INVALID_AVAILABLE_SEATS",
-    "message": "Available seats cannot be greater than section capacity."
-  }
-}
-```
-
-Unexpected integrity errors use `DATABASE_CONSTRAINT_VIOLATION` and do not
-expose database statements, connection details, or stored values.
+Unexpected integrity errors use `DATABASE_CONSTRAINT_VIOLATION`. Repository
+failures use `DATABASE_OPERATION_FAILED`. Neither response exposes raw
+database information.

@@ -65,8 +65,9 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
         response = self.client.get("/constraint/sqlite-course-id")
 
         self.assertEqual(response.status_code, 409)
+        self.assertFalse(response.json()["success"])
         self.assertEqual(
-            response.json()["detail"],
+            response.json()["error"],
             {
                 "code": "DUPLICATE_COURSE_ID",
                 "message": "A course with this course ID already exists.",
@@ -84,7 +85,7 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(
-            response.json()["detail"]["code"],
+            response.json()["error"]["code"],
             "DUPLICATE_COURSE_SECTION",
         )
 
@@ -93,7 +94,7 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
         self.assertEqual(
-            response.json()["detail"],
+            response.json()["error"],
             {
                 "code": "INVALID_AVAILABLE_SEATS",
                 "message": (
@@ -108,7 +109,7 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 422)
         self.assertEqual(
-            response.json()["detail"]["code"],
+            response.json()["error"]["code"],
             "INVALID_SECTION_CAPACITY",
         )
 
@@ -118,7 +119,7 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 409)
         self.assertEqual(
-            response.json()["detail"]["code"],
+            response.json()["error"]["code"],
             "DATABASE_CONSTRAINT_VIOLATION",
         )
         self.assertNotIn("connection", response_text)

@@ -24,20 +24,32 @@ class UserRole(str, Enum):
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def unauthorized_exception(detail: str) -> HTTPException:
+def unauthorized_exception(
+    detail: str,
+    *,
+    code: str = "UNAUTHORIZED",
+) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail=detail,
+        detail={
+            "code": code,
+            "message": detail,
+        },
         headers={"WWW-Authenticate": "Bearer"},
     )
 
 
 def forbidden_exception(
     detail: str = "You do not have permission to access this resource.",
+    *,
+    code: str = "INSUFFICIENT_PERMISSIONS",
 ) -> HTTPException:
     return HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail=detail,
+        detail={
+            "code": code,
+            "message": detail,
+        },
     )
 
 
@@ -49,7 +61,8 @@ def get_current_user(
 ) -> User:
     if credentials is None:
         raise unauthorized_exception(
-            "A Bearer access token is required."
+            "A Bearer access token is required.",
+            code="AUTHENTICATION_REQUIRED",
         )
 
     try:
@@ -58,14 +71,16 @@ def get_current_user(
         )
     except AccessTokenError as error:
         raise unauthorized_exception(
-            "The access token is invalid or expired."
+            "The access token is invalid or expired.",
+            code="INVALID_ACCESS_TOKEN",
         ) from error
 
     user = find_user_by_id(db, user_id)
 
     if user is None:
         raise unauthorized_exception(
-            "The access token does not identify an existing user."
+            "The access token does not identify an existing user.",
+            code="TOKEN_USER_NOT_FOUND",
         )
 
     return user
@@ -76,7 +91,8 @@ def get_validated_role(user: User) -> UserRole:
         return UserRole(user.role)
     except (TypeError, ValueError) as error:
         raise forbidden_exception(
-            "The account does not have a valid role."
+            "The account does not have a valid role.",
+            code="INVALID_ACCOUNT_ROLE",
         ) from error
 
 

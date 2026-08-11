@@ -1,6 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.api.errors import (
+    REQUEST_VALIDATION_ERROR_RESPONSE,
+    STANDARD_ERROR_RESPONSE,
+)
 from app.authorization import get_current_user
 from app.database import get_db
 from app.models.user import User
@@ -10,7 +14,9 @@ from app.repositories.user_repository import (
     verify_user_credentials,
 )
 from app.schemas.auth import (
+    AuthData,
     AuthResponse,
+    CurrentUserResponse,
     LoginRequest,
     RegisterRequest,
     UserResponse,
@@ -25,6 +31,12 @@ router = APIRouter(prefix="/api/auth", tags=["Authentication"])
     "/register",
     response_model=AuthResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        status.HTTP_409_CONFLICT: STANDARD_ERROR_RESPONSE,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            REQUEST_VALIDATION_ERROR_RESPONSE
+        ),
+    },
 )
 def register_student(
     payload: RegisterRequest,
@@ -35,7 +47,12 @@ def register_student(
     if existing_user is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="An account with this email already exists.",
+            detail={
+                "code": "EMAIL_ALREADY_REGISTERED",
+                "message": (
+                    "An account with this email already exists."
+                ),
+            },
         )
 
     user = create_user(
@@ -46,17 +63,28 @@ def register_student(
     )
 
     return AuthResponse(
-        token=create_access_token(user.id),
-        user=UserResponse(
-            id=user.id,
-            name=user.full_name,
-            email=user.email,
-            role=user.role,
+        data=AuthData(
+            token=create_access_token(user.id),
+            user=UserResponse(
+                id=user.id,
+                name=user.full_name,
+                email=user.email,
+                role=user.role,
+            ),
         ),
     )
 
 
-@router.post("/login", response_model=AuthResponse)
+@router.post(
+    "/login",
+    response_model=AuthResponse,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: STANDARD_ERROR_RESPONSE,
+        status.HTTP_422_UNPROCESSABLE_CONTENT: (
+            REQUEST_VALIDATION_ERROR_RESPONSE
+        ),
+    },
+)
 def login_student(
     payload: LoginRequest,
     db: Session = Depends(get_db),
@@ -70,27 +98,40 @@ def login_student(
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid email or password.",
+            detail={
+                "code": "INVALID_CREDENTIALS",
+                "message": "Invalid email or password.",
+            },
         )
 
     return AuthResponse(
-        token=create_access_token(user.id),
-        user=UserResponse(
-            id=user.id,
-            name=user.full_name,
-            email=user.email,
-            role=user.role,
+        data=AuthData(
+            token=create_access_token(user.id),
+            user=UserResponse(
+                id=user.id,
+                name=user.full_name,
+                email=user.email,
+                role=user.role,
+            ),
         ),
     )
 
 
-@router.get("/me", response_model=UserResponse)
+@router.get(
+    "/me",
+    response_model=CurrentUserResponse,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: STANDARD_ERROR_RESPONSE,
+    },
+)
 def get_current_student(
     current_user: User = Depends(get_current_user),
 ):
-    return UserResponse(
-        id=current_user.id,
-        name=current_user.full_name,
-        email=current_user.email,
-        role=current_user.role,
+    return CurrentUserResponse(
+        data=UserResponse(
+            id=current_user.id,
+            name=current_user.full_name,
+            email=current_user.email,
+            role=current_user.role,
+        )
     )

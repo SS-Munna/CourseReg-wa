@@ -10,8 +10,10 @@ export type AuthUser = {
 
 export type AuthResponse = {
   success: boolean
-  token: string
-  user: AuthUser
+  data: {
+    token: string
+    user: AuthUser
+  }
 }
 
 export type RegisterPayload = {
@@ -30,8 +32,8 @@ async function handleAuthResponse(response: Response): Promise<AuthResponse> {
 
   if (!response.ok) {
     const message =
-      typeof data.detail === 'string'
-        ? data.detail
+      typeof data.error?.message === 'string'
+        ? data.error.message
         : 'Authentication request failed.'
 
     throw new Error(message)

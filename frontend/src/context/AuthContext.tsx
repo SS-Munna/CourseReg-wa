@@ -55,12 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (payload: LoginPayload) => {
     const response = await loginStudent(payload)
-    saveSession(response.user, response.token)
+    saveSession(response.data.user, response.data.token)
   }
 
   const register = async (payload: RegisterPayload) => {
     const response = await registerStudent(payload)
-    saveSession(response.user, response.token)
+    saveSession(response.data.user, response.data.token)
   }
 
   const logout = () => {

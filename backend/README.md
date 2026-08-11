@@ -49,6 +49,39 @@ From the `backend` folder:
 - http://127.0.0.1:8000/api/auth/me
 - http://127.0.0.1:8000/docs
 
+## Shared API response contract
+
+All JSON application endpoints use a common response envelope. Successful
+responses contain `success: true` and a `data` value:
+
+```json
+{
+  "success": true,
+  "data": {
+    "status": "ready"
+  }
+}
+```
+
+Errors contain `success: false` and an `error` object with a stable code and
+safe message:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Not Found"
+  }
+}
+```
+
+Request-validation errors also provide a `details` list with the affected
+field, message, and validation type. Paginated endpoints add `pagination`
+with `page`, `page_size`, `total_items`, and `total_pages`. The reusable
+schemas live in `app/schemas/common.py`, and centralized exception handlers
+live in `app/api/errors.py`.
+
 ## Database
 
 The backend creates local database tables automatically on startup.
@@ -102,12 +135,15 @@ Successful registration returns HTTP `201` with a signed JWT and the registered 
 
 ```json
 {
-  "token": "<signed-jwt-access-token>",
-  "user": {
-    "id": "73f37649-8365-4b9d-a92e-584ebaabd0c7",
-    "name": "New Student",
-    "email": "student@example.com",
-    "role": "student"
+  "success": true,
+  "data": {
+    "token": "<signed-jwt-access-token>",
+    "user": {
+      "id": "73f37649-8365-4b9d-a92e-584ebaabd0c7",
+      "name": "New Student",
+      "email": "student@example.com",
+      "role": "student"
+    }
   }
 }
 ```
@@ -182,7 +218,8 @@ For example, a duplicate course ID produces:
 
 ```json
 {
-  "detail": {
+  "success": false,
+  "error": {
     "code": "DUPLICATE_COURSE_ID",
     "message": "A course with this course ID already exists."
   }
