@@ -193,6 +193,33 @@ guard is authoritative at the final-validation boundary. No new column or
 table is required, so existing SQLite and PostgreSQL deployments need no
 schema migration or reset.
 
+## Schedule-Conflict Detection
+
+Schedule conflicts are derived from the JSON meeting entries stored on the
+current denormalized `courses` offering rows. The query joins the authenticated
+student's registrations to those offerings and includes only `draft`,
+`pending`, and `approved` states. `rejected` and `dropped` rows do not
+participate.
+
+Two meetings conflict only when they belong to the same normalized semester,
+their normalized days match, and both strict interval rules are true:
+
+```text
+new_start < existing_end
+new_end > existing_start
+```
+
+This permits adjacent classes whose boundary times are equal. Each meeting in
+a multi-day schedule is compared, and the result records both courses,
+sections, registration states and complete meeting ranges together with the
+exact overlapping interval. Candidate checks run before draft insertion. A
+second reusable guard checks all active pairs for final submission.
+
+Conflict validation is computed rather than stored, so no table, column,
+production migration, or database reset is required. Schedule times are parsed
+as 24-hour `HH:MM`; malformed stored schedule data fails through the safe
+repository-error contract instead of being returned to clients.
+
 ## Authentication Compatibility
 
 JWT subjects contain the authenticated user's UUID as a string. The backend

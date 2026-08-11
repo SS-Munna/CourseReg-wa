@@ -61,6 +61,10 @@ GET /api/selections/credit-validation
 
 POST /api/selections/credit-validation
 
+GET /api/selections/schedule-conflict-validation
+
+POST /api/selections/schedule-conflict-validation
+
 DELETE /api/selections/{course_id}
 
 The protected selection routes derive the student profile from the JWT user,
@@ -74,6 +78,12 @@ The credit-validation read route reports the active total and configured
 program range. Its validation action uses the same reusable guard that final
 submission will call, returning a structured `422` when the total is below or
 above the inclusive limits without changing any registration status.
+
+The schedule-conflict read route reports every overlap across the student's
+draft, pending, and approved registrations. Its validation action applies the
+same reusable blocking guard intended for final submission. Selection creation
+also invokes a candidate-specific form of the guard and returns a structured
+`409` containing both course/section records and the exact overlapping time.
 
 ## Repository Design
 
@@ -102,6 +112,13 @@ records, loads the minimum and maximum from the student's program, and returns
 a structured below-minimum, within-range, or above-maximum result. Selection
 mutations calculate that result inside their transaction so a response cannot
 report a failed total after persisting an otherwise successful mutation.
+
+The schedule-conflict repository loads the authenticated student's active
+registrations and compares every meeting pair in the same normalized semester.
+Day matching is case- and whitespace-insensitive. Strict interval comparison
+allows adjacent meetings while detecting partial, contained, and exact
+overlaps. The repository returns every conflict in deterministic course order
+and exposes reusable candidate-selection and final-load guards.
 
 Supported filters:
 
@@ -189,6 +206,13 @@ inclusive minimum and maximum boundaries, flexible over-limit drafts, clear
 blocking responses, student isolation, active-state inclusion, rejected and
 dropped exclusion, protected-route behavior, safe repository failures, the
 reusable final-load guard, OpenAPI schemas, and PostgreSQL query compilation.
+
+Schedule-conflict tests verify detailed blocking errors, all active and
+inactive registration states, exact non-overlapping boundaries, normalized
+semester/day matching, multiple weekly meetings, conflict-free validation,
+all-conflict reporting, student isolation, malformed stored-data safety,
+mutation rollback, reusable final validation, OpenAPI schemas, and PostgreSQL
+query compilation.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an

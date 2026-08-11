@@ -19,6 +19,11 @@ from app.repositories.prerequisite_repository import (
     PrerequisitesNotMetError,
     require_prerequisites_met,
 )
+from app.repositories.schedule_conflict_repository import (
+    ScheduleConflictError,
+    ScheduleConflictRepositoryError,
+    require_no_schedule_conflict_for_course,
+)
 from app.schemas.credit import CreditLoadValidation
 from app.schemas.selection import DraftSelection, DraftSelectionRemoved
 
@@ -158,6 +163,11 @@ def add_draft_selection(
             student_id=student_id,
             course_id=course.course_id,
         )
+        require_no_schedule_conflict_for_course(
+            db,
+            student_id=student_id,
+            candidate_course=course,
+        )
 
         registration = Registration(
             student_id=student_id,
@@ -186,6 +196,7 @@ def add_draft_selection(
     except (
         DuplicateSelectionError,
         PrerequisitesNotMetError,
+        ScheduleConflictError,
         SectionNotFoundError,
     ):
         db.rollback()
@@ -196,6 +207,7 @@ def add_draft_selection(
     except (
         CreditRepositoryError,
         PrerequisiteRepositoryError,
+        ScheduleConflictRepositoryError,
     ) as error:
         db.rollback()
         raise SelectionRepositoryError(str(error)) from error

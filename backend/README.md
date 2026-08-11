@@ -46,6 +46,7 @@ From the `backend` folder:
 - http://127.0.0.1:8000/api/courses
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
 - http://127.0.0.1:8000/api/selections
+- http://127.0.0.1:8000/api/selections/schedule-conflict-validation
 - http://127.0.0.1:8000/api/auth/register
 - http://127.0.0.1:8000/api/auth/login
 - http://127.0.0.1:8000/api/auth/me
@@ -267,7 +268,10 @@ The create request accepts the public section identifier:
 course details and database-derived available seats. Before persistence, it
 uses the shared prerequisite guard. Unmet rules return
 `422 PREREQUISITES_NOT_MET` with the full eligibility result, and no draft is
-created.
+created. It then compares the candidate schedule with the student's draft,
+pending, and approved registrations. An overlap returns
+`409 SCHEDULE_CONFLICT` with both course identities, sections, meeting times,
+and the exact overlap; the conflicting draft is not created.
 
 `GET` returns only the authenticated student's draft records. `DELETE`
 removes only that student's matching draft; pending, approved, rejected, and
@@ -307,6 +311,36 @@ Rejected and dropped registrations do not. Limits come from the student's
 program, and course credits are summed from the current registration rows, so
 the result is not stored or cached. The reusable `require_valid_credit_load`
 guard is intended for the final submission transaction in Issue #27.
+
+## Schedule-conflict validation API
+
+Authenticated students can inspect or enforce their current schedule with:
+
+```text
+GET /api/selections/schedule-conflict-validation
+POST /api/selections/schedule-conflict-validation
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+`GET` reports every overlap already present in the active registration set.
+`POST` applies the reusable blocking guard without changing registration
+states. A conflict returns `409 SCHEDULE_CONFLICT`; the safe `details` object
+contains both course IDs, codes, titles, sections, registration states and
+meeting ranges, plus the day and exact overlapping interval.
+
+Only courses in the same normalized semester can conflict. Meetings conflict
+when their normalized days match and their intervals overlap strictly:
+
+```text
+new_start < existing_end AND new_end > existing_start
+```
+
+Therefore, one meeting may start exactly when another ends. Draft, pending,
+and approved registrations participate; rejected and dropped registrations do
+not. Every weekly meeting entry is checked. Invalid stored schedule values
+produce a safe database-operation response rather than exposing stored data.
+The reusable `require_no_schedule_conflicts` guard is intended for the final
+submission transaction in Issue #27.
 
 ## Course data integrity
 
@@ -404,8 +438,10 @@ the registration models' `section_id` foreign key points to the internal
 
 Draft registrations are created, listed, and removed through the protected
 selection API. Credit-limit validation is available through the protected
-credit-validation API. Schedule-conflict checks, final submission,
-notifications, and audit-log automation remain separate workflow features.
+credit-validation API. Schedule-conflict checks block invalid draft additions
+and are available through the protected conflict-validation API. Final
+submission, notifications, and audit-log automation remain separate workflow
+features.
 
 ## Prerequisite and completed-course models
 
