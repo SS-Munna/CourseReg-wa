@@ -177,6 +177,22 @@ still in the draft state. Non-draft records are retained for later status,
 review, drop, and audit workflows. This feature reuses existing tables and
 constraints, so it requires no production reset or schema migration.
 
+## Credit Load Calculation
+
+Credit totals are derived rather than stored. The calculation joins the
+authenticated student's `registrations` rows to `courses` and sums
+`courses.credits` for `draft`, `pending`, and `approved` states. `rejected`
+and `dropped` rows are excluded. The applicable inclusive range comes from
+the student's related `programs.minimum_credit` and
+`programs.maximum_credit` values.
+
+The API reports the current total, range, shortfall or excess, and validation
+state. A reusable guard rejects a final-load check outside the range. Draft
+additions remain editable even when they temporarily exceed the maximum; the
+guard is authoritative at the final-validation boundary. No new column or
+table is required, so existing SQLite and PostgreSQL deployments need no
+schema migration or reset.
+
 ## Authentication Compatibility
 
 JWT subjects contain the authenticated user's UUID as a string. The backend

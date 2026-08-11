@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.common import SuccessResponse
 from app.schemas.course import CourseResponse
+from app.schemas.credit import CreditLoadValidation
 
 
 class DraftSelectionCreate(BaseModel):
@@ -34,16 +35,16 @@ class DraftSelectionRemoved(BaseModel):
 
 
 class DraftSelectionResponse(SuccessResponse[DraftSelection]):
-    pass
+    credit_validation: CreditLoadValidation
 
 
 class DraftSelectionListResponse(
     SuccessResponse[list[DraftSelection]]
 ):
-    pass
+    credit_validation: CreditLoadValidation
 
 
 class DraftSelectionRemovedResponse(
     SuccessResponse[DraftSelectionRemoved]
 ):
-    pass
+    credit_validation: CreditLoadValidation
