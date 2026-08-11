@@ -2,7 +2,7 @@
 
 CoursePilot is a student course registration and course catalogue web application.
 
-The current implemented feature is the student course catalogue with search and filtering. Students can view available courses, search by course code or title, filter by department and semester, and check available seats.
+The current implemented feature is the student course catalogue with search and filtering. Students can view available courses, search by course code or title, filter by department and semester, and check live section availability calculated from approved registrations.
 
 ## Tech Stack
 
@@ -18,9 +18,11 @@ The current implemented feature is the student course catalogue with search and 
 
 React Course Catalogue Page -> frontend API service -> FastAPI endpoint -> SQLAlchemy repository -> courses table -> JSON response -> React course cards
 
-## Main API Endpoint
+## Main API Endpoints
 
 GET /api/courses
+
+GET /api/courses/{course_id}/availability
 
 Optional query parameters:
 
@@ -46,6 +48,7 @@ Open:
 - http://127.0.0.1:8000/health
 - http://127.0.0.1:8000/api/database/status
 - http://127.0.0.1:8000/api/courses
+- http://127.0.0.1:8000/api/courses/cse-101/availability
 - http://127.0.0.1:8000/docs
 
 ## Frontend Local Setup

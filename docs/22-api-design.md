@@ -155,6 +155,60 @@ Example response:
 }
 ```
 
+Catalogue `available_seats` values and `available_only` filtering are derived
+from the current number of approved registrations, not from a cached seat
+value.
+
+## Section Availability API
+
+```text
+GET /api/courses/{course_id}/availability
+```
+
+`course_id` is the public identifier of the current denormalized course-section
+offering. Schedule entries carry their own room because a section may meet in
+different rooms on different days.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "course_id": "cse-101",
+    "code": "CSE 101",
+    "title": "Introduction to Computer Science",
+    "department": "CSE",
+    "semester": "Fall 2026",
+    "instructor": "Dr. Rahman",
+    "credits": 3,
+    "capacity": 40,
+    "available_seats": 12,
+    "is_mandatory": true,
+    "level": "Undergraduate",
+    "description": "Introductory programming and computing concepts.",
+    "prerequisites": [],
+    "section": "A",
+    "schedule": [
+      {
+        "day": "Sunday",
+        "start_time": "10:00",
+        "end_time": "11:30",
+        "room": "CSE-201"
+      }
+    ],
+    "enrollment": 28,
+    "is_full": false
+  }
+}
+```
+
+Availability follows the ERD rule: capacity minus the number of approved
+registrations, clamped at zero. Other registration states do not consume a
+seat. The endpoint recalculates on every request. Unknown identifiers return
+`404 SECTION_NOT_FOUND`; repository failures use the shared safe `500`
+response.
+
 ## Status Codes
 
 | Status Code | Meaning |

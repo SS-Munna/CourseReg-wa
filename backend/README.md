@@ -197,6 +197,26 @@ Optional filters:
 - `is_mandatory`
 - `available_only`
 
+Section availability details use the public catalogue identifier:
+
+```text
+GET /api/courses/{course_id}/availability
+```
+
+The response includes the section label, instructor, schedule entries and
+their rooms, capacity, approved enrollment, calculated available seats, and
+an `is_full` flag. Both this endpoint and the course catalogue calculate
+availability from current registration rows:
+
+```text
+available_seats = max(capacity - approved registrations, 0)
+```
+
+Draft, pending, rejected, and dropped registrations do not consume an
+enrolled seat. A missing public `course_id` returns `404 SECTION_NOT_FOUND`.
+The stored `courses.available_seats` value remains for schema compatibility,
+but read APIs do not treat it as the authoritative live count.
+
 ## Course data integrity
 
 Each current `courses` row represents one course section in one semester.

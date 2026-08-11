@@ -102,6 +102,23 @@ to clients.
 - User, read status, and creation time support unread-notification queries.
 - Audit actor/entity indexes support chronological activity lookup.
 
+## Live Section Availability
+
+Read APIs calculate current section enrollment by counting registration rows
+whose `registration_status` is `approved`. Draft, pending, rejected, and
+dropped rows are excluded. Available seats are derived for each request as:
+
+```text
+max(section capacity - approved enrollment, 0)
+```
+
+The catalogue's `available_only` filter uses this same database-derived count,
+so a section becomes full without requiring a separate cached seat update.
+The existing `courses.available_seats` column is retained for compatibility
+with the current denormalized catalogue schema, but it is not authoritative for
+availability reads. Issue #26 adds transactional locking for writes that
+allocate the final seat.
+
 ## Authentication Compatibility
 
 JWT subjects contain the authenticated user's UUID as a string. The backend
