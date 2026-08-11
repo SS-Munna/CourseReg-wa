@@ -109,6 +109,14 @@ delete that development-only database file, and restart the backend so
 SQLAlchemy can create the current schema. This reset removes local demo data
 and must not be used as a production migration strategy.
 
+For PostgreSQL, startup runs an idempotent compatibility migration before
+`create_all`. It upgrades a legacy integer `users.id` to UUID, preserves the
+existing user rows and names, and adds the account-status and timestamp
+columns required by the current user model. The migration is transactional
+and protected by a PostgreSQL advisory lock, so a failure rolls back instead
+of leaving a partially converted table. Existing JWTs with integer subjects
+must be replaced by signing in again after this migration.
+
 ## Authentication API
 
 CoursePilot uses signed, expiring JWT access tokens. Each token contains the user ID, issue time, and expiration time. The default expiry period is 30 minutes.

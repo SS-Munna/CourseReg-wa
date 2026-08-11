@@ -2,6 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 from app.config import settings
+from app.schema_migrations import run_startup_schema_migrations
 
 connect_args = {}
 
@@ -22,6 +23,7 @@ Base = declarative_base()
 def init_database() -> None:
     import app.models  # noqa: F401
 
+    run_startup_schema_migrations(engine)
     Base.metadata.create_all(bind=engine)
 
 
