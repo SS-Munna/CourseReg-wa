@@ -119,6 +119,13 @@ CONSTRAINT_RESPONSES = {
         code="INVALID_COMPLETION_DATE",
         message="A completed course must include its completion date.",
     ),
+    "uq_registration_student_section": ConstraintResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        code="DUPLICATE_SELECTION",
+        message=(
+            "This course section is already selected or registered."
+        ),
+    ),
 }
 
 
@@ -137,6 +144,10 @@ SQLITE_CONSTRAINT_SIGNATURES = {
         "unique constraint failed: completed_courses.student_id, "
         "completed_courses.course_id"
     ): "uq_completed_course_student_course",
+    (
+        "unique constraint failed: registrations.student_id, "
+        "registrations.section_id"
+    ): "uq_registration_student_section",
 }
 
 

@@ -45,6 +45,7 @@ From the `backend` folder:
 - http://127.0.0.1:8000/api/database/status
 - http://127.0.0.1:8000/api/courses
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
+- http://127.0.0.1:8000/api/selections
 - http://127.0.0.1:8000/api/auth/register
 - http://127.0.0.1:8000/api/auth/login
 - http://127.0.0.1:8000/api/auth/me
@@ -243,6 +244,41 @@ records from an older offering with the same normalized course code qualify;
 prerequisite lists remain supported and represent completion-only rules when
 no normalized minimum grade is configured.
 
+## Draft Selection API
+
+Authenticated students manage their own draft course selections with:
+
+```text
+GET /api/selections
+POST /api/selections
+DELETE /api/selections/{course_id}
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+The create request accepts the public section identifier:
+
+```json
+{
+  "course_id": "cse-201"
+}
+```
+
+`POST` returns `201`, stores a `draft` registration, and includes current
+course details and database-derived available seats. Before persistence, it
+uses the shared prerequisite guard. Unmet rules return
+`422 PREREQUISITES_NOT_MET` with the full eligibility result, and no draft is
+created.
+
+`GET` returns only the authenticated student's draft records. `DELETE`
+removes only that student's matching draft; pending, approved, rejected, and
+dropped records cannot be removed through this endpoint. The API never
+accepts a student identifier from the client.
+
+Application checks provide an immediate duplicate response, while the named
+`uq_registration_student_section` database constraint remains authoritative
+for concurrent requests. Duplicate selections return
+`409 DUPLICATE_SELECTION` without creating a second row.
+
 ## Course data integrity
 
 Each current `courses` row represents one course section in one semester.
@@ -337,9 +373,10 @@ the registration models' `section_id` foreign key points to the internal
 `courses.id`. Public APIs continue to identify catalogue records with
 `course_id`.
 
-This issue establishes persistence only. Creating notifications and audit-log
-records automatically when registration actions occur is handled by the
-notification and audit-logging feature.
+Draft registrations are created, listed, and removed through the protected
+selection API. Credit-limit validation, schedule-conflict checks, final
+submission, notifications, and audit-log automation remain separate workflow
+features.
 
 ## Prerequisite and completed-course models
 
@@ -349,7 +386,6 @@ offering, grade, completion state, and completion date. Duplicate rules,
 self-references, unsupported grades or states, and duplicate student/course
 records are rejected by named database constraints.
 
-The reusable `require_prerequisites_met` guard raises before selection
-persistence when requirements are unmet. Issue #23 can call this guard while
-adding draft-course management, keeping the eligibility rule authoritative in
-one backend path.
+The reusable `require_prerequisites_met` guard raises before draft-selection
+persistence when requirements are unmet, keeping the eligibility rule
+authoritative in one backend path.

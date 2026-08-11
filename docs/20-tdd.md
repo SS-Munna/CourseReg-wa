@@ -53,6 +53,18 @@ course records. It returns eligibility plus every satisfied or missing rule,
 including minimum and earned grades. Missing student profiles and courses use
 shared `404` errors; authentication and authorization use `401` and `403`.
 
+GET /api/selections
+
+POST /api/selections
+
+DELETE /api/selections/{course_id}
+
+The protected selection routes derive the student profile from the JWT user,
+list only draft registrations, add an eligible section, and delete only an
+owned draft. They return stable errors for missing profiles or sections,
+duplicate records, unmet prerequisites, non-draft removal attempts, and safe
+repository failures.
+
 ## Repository Design
 
 The course repository uses SQLAlchemy queries to retrieve and filter course
@@ -66,6 +78,13 @@ normalized course code. This allows a successful historical offering to
 satisfy a current rule. It selects the student's best completed grade and
 returns a structured reason for each unmet rule. A reusable guard raises
 `PrerequisitesNotMetError` before a caller persists an invalid selection.
+
+The selection repository joins draft registrations to current course data and
+uses the same approved-enrollment expression as the catalogue. Creation
+checks for an existing student/section row, invokes the prerequisite guard,
+and commits one draft transaction. The database unique constraint resolves
+concurrent duplicate attempts. Removal scopes its lookup to the authenticated
+student and refuses every non-draft state.
 
 Supported filters:
 
@@ -141,6 +160,12 @@ eligibility, missing courses, insufficient minimum grades, historical
 offerings, ignored in-progress records, legacy JSON rules, student-only
 authorization, safe database failures, OpenAPI schemas, PostgreSQL query
 compilation, and the blocking selection guard.
+
+Selected-course tests exercise create/list/delete behavior, dynamic seat
+output, ownership isolation, non-draft protection, student-only access,
+missing profiles and sections, invalid request bodies, unmet prerequisite
+rollback, duplicate prevention, safe database failures, shared constraint
+translation, OpenAPI schemas, and PostgreSQL query compilation.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an
