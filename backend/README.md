@@ -57,13 +57,17 @@ Important files:
 
 - `app/database.py`
 - `app/models/advisor.py`
+- `app/models/audit_log.py`
 - `app/models/course.py`
 - `app/models/department.py`
 - `app/models/instructor.py`
+- `app/models/notification.py`
 - `app/models/program.py`
+- `app/models/registration.py`
 - `app/models/semester.py`
 - `app/models/student.py`
 - `app/models/user.py`
+- `app/models/waitlist_entry.py`
 - `app/seed_data.py`
 
 The core user and academic entities use UUID primary keys. If a local
@@ -197,3 +201,26 @@ student belongs to one program and is assigned to one advisor. Unique email,
 student-number, employee-number, department-code, and program-code constraints
 are enforced by the database. Program credit ranges, positive trimester/year
 values, and semester date ranges also have database-level checks.
+
+## Registration and activity models
+
+The persistence layer includes registrations, waitlist entries, notifications,
+and audit logs. Registration states are limited to `draft`, `pending`,
+`approved`, `rejected`, and `dropped`. Waitlist states are limited to `active`,
+`promoted`, `removed`, and `expired`.
+
+A student can have only one registration and one waitlist entry for the same
+section offering. Active waitlist queues can be ordered by `joined_at`, so a
+stored queue-position value cannot become stale. Composite indexes support
+student status lookups, section status lookups, queue ordering, unread
+notifications, and audit-history queries.
+
+The current catalogue stores each semester/section offering in one `courses`
+row, including its section label, instructor, capacity, and schedule. Therefore
+the registration models' `section_id` foreign key points to the internal
+`courses.id`. Public APIs continue to identify catalogue records with
+`course_id`.
+
+This issue establishes persistence only. Creating notifications and audit-log
+records automatically when registration actions occur is handled by the
+notification and audit-logging feature.

@@ -62,3 +62,11 @@ class Student(Base):
     user = relationship("User", back_populates="student")
     program = relationship("Program", back_populates="students")
     advisor = relationship("Advisor", back_populates="students")
+    registrations = relationship(
+        "Registration",
+        back_populates="student",
+    )
+    waitlist_entries = relationship(
+        "WaitlistEntry",
+        back_populates="student",
+    )

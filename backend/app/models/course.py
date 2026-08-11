@@ -1,4 +1,5 @@
 from sqlalchemy import Boolean, Column, Integer, JSON, String, Text
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 
@@ -22,3 +23,12 @@ class Course(Base):
     prerequisites = Column(JSON, default=list)
     section = Column(String, nullable=True)
     schedule = Column(JSON, default=list)
+
+    registrations = relationship(
+        "Registration",
+        back_populates="section",
+    )
+    waitlist_entries = relationship(
+        "WaitlistEntry",
+        back_populates="section",
+    )

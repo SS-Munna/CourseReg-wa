@@ -42,10 +42,18 @@ Supported filters:
 ## Model Design
 
 The SQLAlchemy model layer includes users, departments, programs, students,
-advisors, instructors, semesters, and the existing course-catalogue model.
-Core user and academic records use UUID primary keys. Relationships connect
-user accounts to optional academic profiles, departments to their programs
-and staff, programs to students, and advisors to their assigned students.
+advisors, instructors, semesters, registrations, waitlist entries,
+notifications, audit logs, and the existing course-catalogue model. Core user,
+academic, registration, and activity records use UUID primary keys.
+Relationships connect user accounts to optional academic profiles,
+departments to their programs and staff, programs to students, advisors to
+their assigned students and reviewed registrations, and students to their
+registration and waitlist records.
+
+Registration and waitlist state values are constrained by the database.
+Student/section uniqueness prevents duplicate records. Composite indexes
+support status queries, ordered active waitlists, unread notifications, and
+audit-history lookups.
 
 ## Seed Data
 
@@ -54,3 +62,10 @@ Development seed data is inserted when the application starts and the database i
 ## Local Development
 
 The local database is created automatically from SQLAlchemy models.
+
+## Model Verification
+
+The unit suite verifies table creation, foreign keys, relationships, UUIDs,
+defaults, timestamps, valid-state queries, state check constraints, and
+student/section uniqueness. These tests run against SQLite while using the
+same SQLAlchemy metadata intended for PostgreSQL.

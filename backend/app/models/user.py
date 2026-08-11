@@ -55,3 +55,11 @@ class User(Base):
         back_populates="user",
         uselist=False,
     )
+    notifications = relationship(
+        "Notification",
+        back_populates="user",
+    )
+    audit_logs = relationship(
+        "AuditLog",
+        back_populates="user",
+    )
