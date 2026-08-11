@@ -71,7 +71,7 @@ class AuthMeRouteTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 401)
 
-    @patch("app.api.routes.auth.find_user_by_id")
+    @patch("app.authorization.find_user_by_id")
     def test_valid_token_returns_current_user(
         self,
         mock_find_user_by_id,
