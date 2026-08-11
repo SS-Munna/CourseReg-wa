@@ -209,6 +209,60 @@ seat. The endpoint recalculates on every request. Unknown identifiers return
 `404 SECTION_NOT_FOUND`; repository failures use the shared safe `500`
 response.
 
+## Prerequisite Validation API
+
+```text
+GET /api/courses/{course_id}/prerequisite-validation
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+The endpoint is limited to authenticated student accounts and uses the
+student profile linked to the JWT user. It does not accept another student's
+identifier. The result remains a successful eligibility response when a rule
+is unmet so the client can render all reasons before selection.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "course_id": "cse-301",
+    "code": "CSE 301",
+    "eligible": false,
+    "requirements": [
+      {
+        "course_id": "cse-201",
+        "code": "CSE 201",
+        "title": "Data Structures",
+        "minimum_grade": "B",
+        "earned_grade": "C+",
+        "satisfied": false,
+        "reason": "minimum_grade_not_met"
+      }
+    ],
+    "missing_prerequisites": [
+      {
+        "course_id": "cse-201",
+        "code": "CSE 201",
+        "title": "Data Structures",
+        "minimum_grade": "B",
+        "earned_grade": "C+",
+        "satisfied": false,
+        "reason": "minimum_grade_not_met"
+      }
+    ]
+  }
+}
+```
+
+`reason` is either `not_completed` or `minimum_grade_not_met`. A course with
+no requirements returns `eligible: true` and empty lists. The repository also
+provides a blocking guard for selection writes; it raises before persistence
+when `eligible` is false. Missing tokens return `401`, non-student roles return
+`403`, missing student profiles or course IDs return `404`, invalid path
+values return `422`, and database failures return a safe `500` response.
+
 ## Status Codes
 
 | Status Code | Meaning |

@@ -102,3 +102,18 @@ class Course(Base):
         "WaitlistEntry",
         back_populates="section",
     )
+    prerequisite_rules = relationship(
+        "CoursePrerequisite",
+        foreign_keys="CoursePrerequisite.course_id",
+        back_populates="course",
+        cascade="all, delete-orphan",
+    )
+    required_for_rules = relationship(
+        "CoursePrerequisite",
+        foreign_keys="CoursePrerequisite.prerequisite_course_id",
+        back_populates="prerequisite_course",
+    )
+    completed_course_records = relationship(
+        "CompletedCourse",
+        back_populates="course",
+    )

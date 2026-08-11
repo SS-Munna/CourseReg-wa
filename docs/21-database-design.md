@@ -29,6 +29,18 @@ The following ERD entities are implemented with UUID primary keys:
 | `notifications` | Stores user-facing account messages | Belongs to a user |
 | `audit_logs` | Stores immutable-shaped action history | Belongs to the user who performed the action |
 
+## Prerequisite and Academic Record Tables
+
+| Table | Purpose | Main relationships |
+|---|---|---|
+| `course_prerequisites` | Stores required courses and optional minimum grades | Links a target `courses` row to a required `courses` row |
+| `completed_courses` | Stores student course outcomes used for eligibility | Belongs to a student and the completed course offering |
+
+The current denormalized catalogue may contain several offerings with the
+same course code. A completed record references the exact historical offering,
+while validation compares normalized course codes so that completion of an
+older offering satisfies the equivalent current prerequisite.
+
 The existing `courses` table continues to provide the current catalogue API.
 Its normalization into ERD course, section, schedule, and room entities is
 handled by the corresponding course-model work.
@@ -91,6 +103,14 @@ to clients.
   `expired`.
 - A student cannot have duplicate registration or waitlist records for the
   same section offering.
+- A course cannot be its own prerequisite, and the same prerequisite pair
+  cannot be stored twice.
+- A student cannot have duplicate completed-course records for the same course
+  offering.
+- Prerequisite minimum grades and completed-course grades are limited to the
+  documented letter-grade scale.
+- Completion states are limited to `completed`, `failed`, `in_progress`, and
+  `withdrawn`.
 - Required relationships use non-null foreign keys.
 
 ## Registration Query Indexes
@@ -118,6 +138,25 @@ The existing `courses.available_seats` column is retained for compatibility
 with the current denormalized catalogue schema, but it is not authoritative for
 availability reads. Issue #26 adds transactional locking for writes that
 allocate the final seat.
+
+## Prerequisite Validation
+
+Normalized rules in `course_prerequisites` are authoritative for minimum-grade
+requirements. Existing `courses.prerequisites` JSON codes remain a compatible
+completion-only source when a normalized rule for that code does not exist.
+
+Validation retrieves the student's records for all required course codes.
+Only records with `completion_status = 'completed'` and a grade other than
+`F` count as successful. If several historical offerings share a code, the
+best successfully completed grade is used. Letter grades are ordered from
+`F` through `A+`; eligibility requires every configured minimum grade to be
+met. The repository reports `not_completed` and `minimum_grade_not_met`
+separately so clients can identify the exact blocking reason.
+
+Student/status and course indexes support academic-record lookups. A reverse
+prerequisite index supports finding courses affected by a required course.
+The new tables are additive, so `create_all` can create them in existing
+SQLite and PostgreSQL databases without changing or deleting current rows.
 
 ## Authentication Compatibility
 

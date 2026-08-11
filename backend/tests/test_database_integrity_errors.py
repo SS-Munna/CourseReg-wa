@@ -45,6 +45,14 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
                 "postgres-capacity": FakePostgreSQLError(
                     "ck_courses_capacity_positive"
                 ),
+                "sqlite-prerequisite": Exception(
+                    "UNIQUE constraint failed: "
+                    "course_prerequisites.course_id, "
+                    "course_prerequisites.prerequisite_course_id"
+                ),
+                "postgres-grade": FakePostgreSQLError(
+                    "ck_completed_course_grade"
+                ),
                 "unknown": Exception(
                     "sensitive database connection and record details"
                 ),
@@ -111,6 +119,21 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
         self.assertEqual(
             response.json()["error"]["code"],
             "INVALID_SECTION_CAPACITY",
+        )
+
+    def test_prerequisite_constraints_use_clear_errors(self):
+        duplicate = self.client.get("/constraint/sqlite-prerequisite")
+        invalid_grade = self.client.get("/constraint/postgres-grade")
+
+        self.assertEqual(duplicate.status_code, 409)
+        self.assertEqual(
+            duplicate.json()["error"]["code"],
+            "DUPLICATE_COURSE_PREREQUISITE",
+        )
+        self.assertEqual(invalid_grade.status_code, 422)
+        self.assertEqual(
+            invalid_grade.json()["error"]["code"],
+            "INVALID_COMPLETED_COURSE_GRADE",
         )
 
     def test_unknown_integrity_error_is_safe(self):

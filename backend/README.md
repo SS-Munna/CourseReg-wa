@@ -44,6 +44,7 @@ From the `backend` folder:
 - http://127.0.0.1:8000/health
 - http://127.0.0.1:8000/api/database/status
 - http://127.0.0.1:8000/api/courses
+- http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
 - http://127.0.0.1:8000/api/auth/register
 - http://127.0.0.1:8000/api/auth/login
 - http://127.0.0.1:8000/api/auth/me
@@ -91,7 +92,9 @@ Important files:
 - `app/database.py`
 - `app/models/advisor.py`
 - `app/models/audit_log.py`
+- `app/models/completed_course.py`
 - `app/models/course.py`
+- `app/models/course_prerequisite.py`
 - `app/models/department.py`
 - `app/models/instructor.py`
 - `app/models/notification.py`
@@ -225,6 +228,21 @@ enrolled seat. A missing public `course_id` returns `404 SECTION_NOT_FOUND`.
 The stored `courses.available_seats` value remains for schema compatibility,
 but read APIs do not treat it as the authoritative live count.
 
+Prerequisite eligibility is available to authenticated students at:
+
+```text
+GET /api/courses/{course_id}/prerequisite-validation
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+The response lists every prerequisite, its optional minimum grade, the
+student's best successfully completed grade, and any unmet requirement. A
+student is eligible only when all requirements are satisfied. Completed
+records from an older offering with the same normalized course code qualify;
+`failed`, `in_progress`, `withdrawn`, and `F` records do not. Existing JSON
+prerequisite lists remain supported and represent completion-only rules when
+no normalized minimum grade is configured.
+
 ## Course data integrity
 
 Each current `courses` row represents one course section in one semester.
@@ -322,3 +340,16 @@ the registration models' `section_id` foreign key points to the internal
 This issue establishes persistence only. Creating notifications and audit-log
 records automatically when registration actions occur is handled by the
 notification and audit-logging feature.
+
+## Prerequisite and completed-course models
+
+`course_prerequisites` stores a target course, its required course, and an
+optional minimum letter grade. `completed_courses` stores a student's course
+offering, grade, completion state, and completion date. Duplicate rules,
+self-references, unsupported grades or states, and duplicate student/course
+records are rejected by named database constraints.
+
+The reusable `require_prerequisites_met` guard raises before selection
+persistence when requirements are unmet. Issue #23 can call this guard while
+adding draft-course management, keeping the eligibility rule authoritative in
+one backend path.
