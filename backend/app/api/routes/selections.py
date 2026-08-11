@@ -26,7 +26,16 @@ from app.repositories.selection_repository import (
     list_draft_selections,
     remove_draft_selection,
 )
+from app.repositories.schedule_conflict_repository import (
+    ScheduleConflictError,
+    ScheduleConflictRepositoryError,
+    get_schedule_conflict_validation,
+    require_no_schedule_conflicts,
+)
 from app.schemas.credit import CreditLoadValidationResponse
+from app.schemas.schedule_conflict import (
+    ScheduleConflictValidationResponse,
+)
 from app.schemas.selection import (
     DraftSelectionCreate,
     DraftSelectionListResponse,
@@ -75,6 +84,33 @@ def _credit_repository_error() -> HTTPException:
                 "Unable to calculate the selected credit load in the "
                 "database."
             ),
+        },
+    )
+
+
+def _schedule_repository_error() -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        detail={
+            "code": "DATABASE_OPERATION_FAILED",
+            "message": (
+                "Unable to validate selected course schedules in the "
+                "database."
+            ),
+        },
+    )
+
+
+def _schedule_conflict_error(
+    error: ScheduleConflictError,
+) -> HTTPException:
+    first_conflict = error.validation.conflicts[0]
+    return HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail={
+            "code": "SCHEDULE_CONFLICT",
+            "message": first_conflict.message,
+            "details": error.validation.model_dump(mode="json"),
         },
     )
 
@@ -185,6 +221,63 @@ def validate_final_credit_load(
         raise _credit_repository_error() from error
 
 
+@router.get(
+    "/schedule-conflict-validation",
+    response_model=ScheduleConflictValidationResponse,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: STANDARD_ERROR_RESPONSE,
+        status.HTTP_403_FORBIDDEN: STANDARD_ERROR_RESPONSE,
+        status.HTTP_404_NOT_FOUND: STANDARD_ERROR_RESPONSE,
+        status.HTTP_500_INTERNAL_SERVER_ERROR: STANDARD_ERROR_RESPONSE,
+    },
+)
+def get_selected_schedule_conflict_validation(
+    current_user: User = Depends(require_student),
+    db: Session = Depends(get_db),
+):
+    student_id = _student_id_or_404(current_user)
+
+    try:
+        validation = get_schedule_conflict_validation(
+            db,
+            student_id=student_id,
+        )
+        return ScheduleConflictValidationResponse(data=validation)
+
+    except ScheduleConflictRepositoryError as error:
+        raise _schedule_repository_error() from error
+
+
+@router.post(
+    "/schedule-conflict-validation",
+    response_model=ScheduleConflictValidationResponse,
+    responses={
+        status.HTTP_401_UNAUTHORIZED: STANDARD_ERROR_RESPONSE,
+        status.HTTP_403_FORBIDDEN: STANDARD_ERROR_RESPONSE,
+        status.HTTP_404_NOT_FOUND: STANDARD_ERROR_RESPONSE,
+        status.HTTP_409_CONFLICT: STANDARD_ERROR_RESPONSE,
+        status.HTTP_500_INTERNAL_SERVER_ERROR: STANDARD_ERROR_RESPONSE,
+    },
+)
+def validate_final_schedule_conflicts(
+    current_user: User = Depends(require_student),
+    db: Session = Depends(get_db),
+):
+    student_id = _student_id_or_404(current_user)
+
+    try:
+        validation = require_no_schedule_conflicts(
+            db,
+            student_id=student_id,
+        )
+        return ScheduleConflictValidationResponse(data=validation)
+
+    except ScheduleConflictError as error:
+        raise _schedule_conflict_error(error) from error
+    except ScheduleConflictRepositoryError as error:
+        raise _schedule_repository_error() from error
+
+
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
@@ -250,6 +343,8 @@ def create_draft_selection(
                 "details": error.validation.model_dump(mode="json"),
             },
         ) from error
+    except ScheduleConflictError as error:
+        raise _schedule_conflict_error(error) from error
     except SelectionRepositoryError as error:
         raise _repository_error() from error
 

@@ -6,7 +6,9 @@ The current implemented features include the student course catalogue and
 authenticated draft-course selection. Students can search and filter current
 offerings, check live section availability, validate prerequisite completion
 and minimum grades, add, list, or remove their own draft selections, and see
-whether their active credit load is within program limits.
+whether their active credit load is within program limits. Overlapping class
+schedules are detected across draft, pending, and approved registrations and
+blocked with both course and time details.
 
 ## Tech Stack
 
@@ -37,6 +39,10 @@ POST /api/selections
 GET /api/selections/credit-validation
 
 POST /api/selections/credit-validation
+
+GET /api/selections/schedule-conflict-validation
+
+POST /api/selections/schedule-conflict-validation
 
 DELETE /api/selections/{course_id}
 
@@ -97,7 +103,9 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/repositories/course_repository.py
 - backend/app/repositories/credit_repository.py
 - backend/app/repositories/prerequisite_repository.py
+- backend/app/repositories/schedule_conflict_repository.py
 - backend/app/repositories/selection_repository.py
+- backend/app/schemas/schedule_conflict.py
 - backend/app/api/routes/courses.py
 - backend/app/api/routes/selections.py
 - backend/app/seed_data.py

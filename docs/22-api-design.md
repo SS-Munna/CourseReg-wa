@@ -270,6 +270,8 @@ GET /api/selections
 POST /api/selections
 GET /api/selections/credit-validation
 POST /api/selections/credit-validation
+GET /api/selections/schedule-conflict-validation
+POST /api/selections/schedule-conflict-validation
 DELETE /api/selections/{course_id}
 Authorization: Bearer <signed-jwt-access-token>
 ```
@@ -315,10 +317,12 @@ Example `201 Created` response:
 }
 ```
 
-Creation calls the prerequisite guard before inserting. An unmet rule returns
-`422 PREREQUISITES_NOT_MET` with the same structured eligibility data as the
-validation endpoint, and the transaction stores no registration. An unknown
-public course ID returns `404 SECTION_NOT_FOUND`.
+Creation calls the prerequisite and schedule-conflict guards before inserting.
+An unmet rule returns `422 PREREQUISITES_NOT_MET` with the same structured
+eligibility data as the validation endpoint. An overlap returns
+`409 SCHEDULE_CONFLICT` with both course and time details. Either result leaves
+the transaction without a new registration. An unknown public course ID
+returns `404 SECTION_NOT_FOUND`.
 
 Repeated selection is blocked by an application lookup and the database's
 student/section unique constraint. Both paths return
@@ -364,6 +368,82 @@ returns the same `200` response. Below-minimum and above-maximum loads return
 contains the complete calculation, including the current total and exact
 shortfall or excess. The final registration transaction in Issue #27 will
 call this same guard before moving draft records to pending.
+
+## Schedule-Conflict Validation API
+
+```text
+GET /api/selections/schedule-conflict-validation
+POST /api/selections/schedule-conflict-validation
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+`GET` returns all current overlaps without changing registration data. A
+conflict-free response is:
+
+```json
+{
+  "success": true,
+  "data": {
+    "has_conflicts": false,
+    "conflict_count": 0,
+    "conflicts": [],
+    "message": "No schedule conflicts were found."
+  }
+}
+```
+
+`POST` invokes the reusable blocking guard intended for final submission. It
+returns the same `200` response when conflict-free. A conflict returns
+`409 SCHEDULE_CONFLICT` with safe structured details:
+
+```json
+{
+  "success": false,
+  "error": {
+    "code": "SCHEDULE_CONFLICT",
+    "message": "Schedule conflict detected. CSE 305, Section B overlaps with CSE 301, Section A on Sunday from 11:00 to 11:30. Remove one course or choose another section.",
+    "details": {
+      "has_conflicts": true,
+      "conflict_count": 1,
+      "conflicts": [
+        {
+          "selected_course": {
+            "course_id": "cse-305-b",
+            "code": "CSE 305",
+            "title": "Database Laboratory",
+            "section": "B",
+            "registration_status": "draft",
+            "start_time": "11:00",
+            "end_time": "12:15"
+          },
+          "conflicting_course": {
+            "course_id": "cse-301-a",
+            "code": "CSE 301",
+            "title": "Database Systems",
+            "section": "A",
+            "registration_status": "approved",
+            "start_time": "10:00",
+            "end_time": "11:30"
+          },
+          "day": "Sunday",
+          "overlap_start_time": "11:00",
+          "overlap_end_time": "11:30",
+          "message": "Schedule conflict detected. CSE 305, Section B overlaps with CSE 301, Section A on Sunday from 11:00 to 11:30. Remove one course or choose another section."
+        }
+      ],
+      "message": "1 schedule conflict was found."
+    }
+  }
+}
+```
+
+Candidate selection compares against the authenticated student's `draft`,
+`pending`, and `approved` registrations. `rejected` and `dropped` records are
+ignored. Only offerings in the same normalized semester can conflict. Days are
+matched case-insensitively after whitespace normalization, and every weekly
+meeting is checked. The strict overlap rule permits adjacent meetings whose
+boundary times are equal. Stored times must use 24-hour `HH:MM` format;
+malformed stored values return a safe `500 DATABASE_OPERATION_FAILED`.
 
 ## Status Codes
 
