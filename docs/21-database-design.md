@@ -125,6 +125,13 @@ JWT subjects contain the authenticated user's UUID as a string. The backend
 validates and converts the subject back to a UUID before querying the user.
 API responses serialize user IDs as UUID strings.
 
+PostgreSQL deployments created before the UUID model update are upgraded at
+application startup. The compatibility migration changes the legacy integer
+`users.id` values to deterministic UUID values, renames `name` to
+`full_name`, and adds the current account-status and timestamp columns. It
+runs in one transaction under an advisory lock and does not delete user rows.
+Fresh databases and databases already using UUID identifiers are left intact.
+
 ## Data Access
 
 The frontend does not access the database directly. It calls FastAPI routes,

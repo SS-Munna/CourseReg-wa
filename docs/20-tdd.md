@@ -113,3 +113,9 @@ verify that only approved records count toward enrollment. They also verify
 immediate recalculation after the final seat is approved, dynamic
 `available_only` filtering, schedule and room output, the shared not-found
 response, safe repository failures, and the OpenAPI response schema.
+
+Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
+the already-current UUID path, fresh-database behavior, safe rejection of an
+unknown identifier type, transactional advisory locking, and migration order
+before SQLAlchemy table creation. The SQL is also checked to ensure it never
+deletes user rows or drops the users table.
