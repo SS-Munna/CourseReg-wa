@@ -52,5 +52,28 @@ GET /api/courses?search=CSE&department=CSE&available_only=true
 | Status Code | Meaning |
 |---|---|
 | 200 | Request successful |
-| 422 | Invalid query parameter type |
+| 409 | A unique database record already exists |
+| 422 | Invalid query parameter, course, or section value |
 | 500 | Database operation failed |
+
+## Database Constraint Errors
+
+SQLAlchemy integrity violations use a stable `detail` object. Known duplicate
+course IDs and duplicate code/semester/section offerings return `409` with
+`DUPLICATE_COURSE_ID` or `DUPLICATE_COURSE_SECTION`. Invalid credits, capacity,
+available seats, or required text values return `422` with a field-specific
+code and message.
+
+Example:
+
+```json
+{
+  "detail": {
+    "code": "INVALID_AVAILABLE_SEATS",
+    "message": "Available seats cannot be greater than section capacity."
+  }
+}
+```
+
+Unexpected integrity errors use `DATABASE_CONSTRAINT_VIOLATION` and do not
+expose database statements, connection details, or stored values.

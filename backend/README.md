@@ -161,6 +161,39 @@ Optional filters:
 - `is_mandatory`
 - `available_only`
 
+## Course data integrity
+
+Each current `courses` row represents one course section in one semester.
+The database enforces the following rules in both SQLite and PostgreSQL:
+
+- `course_id` is unique.
+- The combination of `code`, `semester`, and `section` is unique.
+- Required course and section text fields cannot be blank.
+- Credits and capacity must be greater than zero.
+- Available seats must be between zero and capacity, inclusive.
+
+Explicit indexes support catalogue searches and filters on course code, title,
+department, and semester. Database constraint violations are translated into
+safe API responses. Duplicate records return `409 Conflict`; invalid numeric
+or required-field values return `422 Unprocessable Content`. Raw database
+messages are not returned to clients.
+
+For example, a duplicate course ID produces:
+
+```json
+{
+  "detail": {
+    "code": "DUPLICATE_COURSE_ID",
+    "message": "A course with this course ID already exists."
+  }
+}
+```
+
+SQLAlchemy's `create_all` creates missing tables but does not add constraints
+or indexes to an existing table. After pulling this schema update, preserve or
+remove an older development-only `coursepilot.db` file and restart the backend.
+Never use a local database reset as a production migration strategy.
+
 
 ## Role-based access control
 

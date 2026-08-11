@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class SectionSchedule(BaseModel):
@@ -11,12 +11,32 @@ class SectionSchedule(BaseModel):
 
 
 class CourseBase(BaseModel):
-    course_id: str = Field(..., description="Unique course identifier")
-    code: str = Field(..., description="Course code, such as CSE 101")
-    title: str = Field(..., description="Course title")
-    department: str = Field(..., description="Department offering the course")
-    semester: str = Field(..., description="Academic semester")
-    instructor: str = Field(..., description="Course instructor")
+    course_id: str = Field(
+        ...,
+        min_length=1,
+        description="Unique course identifier",
+    )
+    code: str = Field(
+        ...,
+        min_length=1,
+        description="Course code, such as CSE 101",
+    )
+    title: str = Field(..., min_length=1, description="Course title")
+    department: str = Field(
+        ...,
+        min_length=1,
+        description="Department offering the course",
+    )
+    semester: str = Field(
+        ...,
+        min_length=1,
+        description="Academic semester",
+    )
+    instructor: str = Field(
+        ...,
+        min_length=1,
+        description="Course instructor",
+    )
     credits: int = Field(..., ge=1, description="Course credit value")
     capacity: int = Field(..., ge=1, description="Maximum seat capacity")
     available_seats: int = Field(..., ge=0, description="Currently available seats")
@@ -24,8 +44,21 @@ class CourseBase(BaseModel):
     level: Optional[str] = Field(default="Undergraduate", description="Course level")
     description: Optional[str] = Field(default=None, description="Course description")
     prerequisites: List[str] = Field(default_factory=list)
-    section: Optional[str] = Field(default=None, description="Course section label")
+    section: str = Field(
+        ...,
+        min_length=1,
+        description="Course section label",
+    )
     schedule: List[SectionSchedule] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def validate_available_seats(self):
+        if self.available_seats > self.capacity:
+            raise ValueError(
+                "available_seats cannot be greater than capacity"
+            )
+
+        return self
 
 
 class CourseCreate(CourseBase):
@@ -50,6 +83,19 @@ class CourseUpdate(BaseModel):
     prerequisites: Optional[List[str]] = None
     section: Optional[str] = None
     schedule: Optional[List[SectionSchedule]] = None
+
+    @model_validator(mode="after")
+    def validate_available_seats(self):
+        if (
+            self.capacity is not None
+            and self.available_seats is not None
+            and self.available_seats > self.capacity
+        ):
+            raise ValueError(
+                "available_seats cannot be greater than capacity"
+            )
+
+        return self
 
 
 class CourseListResponse(BaseModel):
