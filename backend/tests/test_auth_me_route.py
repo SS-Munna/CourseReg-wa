@@ -2,6 +2,7 @@ import unittest
 from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -34,12 +35,13 @@ class AuthMeRouteTestCase(unittest.TestCase):
         )
 
     def test_invalid_tokens_return_401(self):
+        user_id = uuid4()
         expired_token = create_access_token(
-            7,
+            user_id,
             expires_delta=timedelta(seconds=-1),
         )
 
-        token_parts = create_access_token(7).split(".")
+        token_parts = create_access_token(user_id).split(".")
         signature = token_parts[2]
         replacement = "A" if signature[0] != "A" else "B"
         token_parts[2] = replacement + signature[1:]
@@ -76,14 +78,15 @@ class AuthMeRouteTestCase(unittest.TestCase):
         self,
         mock_find_user_by_id,
     ):
+        user_id = uuid4()
         mock_find_user_by_id.return_value = SimpleNamespace(
-            id=7,
-            name="JWT Test User",
+            id=user_id,
+            full_name="JWT Test User",
             email="jwt@example.com",
             role="student",
         )
 
-        token = create_access_token(7)
+        token = create_access_token(user_id)
         response = self.client.get(
             "/api/auth/me",
             headers={"Authorization": f"Bearer {token}"},
@@ -93,7 +96,7 @@ class AuthMeRouteTestCase(unittest.TestCase):
         self.assertEqual(
             response.json(),
             {
-                "id": 7,
+                "id": str(user_id),
                 "name": "JWT Test User",
                 "email": "jwt@example.com",
                 "role": "student",
@@ -101,7 +104,7 @@ class AuthMeRouteTestCase(unittest.TestCase):
         )
         self.assertEqual(
             mock_find_user_by_id.call_args.args[1],
-            7,
+            user_id,
         )
 
 

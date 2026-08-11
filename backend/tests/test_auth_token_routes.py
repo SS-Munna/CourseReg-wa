@@ -1,6 +1,7 @@
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -37,13 +38,14 @@ class AuthTokenRoutesTestCase(unittest.TestCase):
         self.assertIn("iat", payload)
         self.assertIn("exp", payload)
 
-        self.assertEqual(response_data["user"]["id"], user_id)
+        self.assertEqual(response_data["user"]["id"], str(user_id))
         self.assertEqual(response_data["user"]["role"], "student")
 
     def test_registration_returns_signed_jwt(self):
+        user_id = uuid4()
         user = SimpleNamespace(
-            id=21,
-            name="New Student",
+            id=user_id,
+            full_name="New Student",
             email="newstudent@example.com",
             role="student",
         )
@@ -67,12 +69,13 @@ class AuthTokenRoutesTestCase(unittest.TestCase):
                 },
             )
 
-        self.assert_valid_jwt_response(response, 21)
+        self.assert_valid_jwt_response(response, user_id)
 
     def test_login_returns_signed_jwt(self):
+        user_id = uuid4()
         user = SimpleNamespace(
-            id=22,
-            name="Existing Student",
+            id=user_id,
+            full_name="Existing Student",
             email="student@example.com",
             role="student",
         )
@@ -89,7 +92,7 @@ class AuthTokenRoutesTestCase(unittest.TestCase):
                 },
             )
 
-        self.assert_valid_jwt_response(response, 22)
+        self.assert_valid_jwt_response(response, user_id)
 
 
 if __name__ == "__main__":

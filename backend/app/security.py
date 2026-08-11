@@ -2,6 +2,7 @@ import hashlib
 import hmac
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from uuid import UUID
 
 import jwt
 
@@ -21,7 +22,7 @@ def verify_password(password: str, password_hash: str) -> bool:
 
 
 def create_access_token(
-    user_id: int,
+    user_id: UUID,
     expires_delta: timedelta | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
@@ -58,11 +59,11 @@ def decode_access_token(token: str) -> dict[str, Any]:
         ) from error
 
 
-def get_user_id_from_access_token(token: str) -> int:
+def get_user_id_from_access_token(token: str) -> UUID:
     payload = decode_access_token(token)
 
     try:
-        return int(payload["sub"])
+        return UUID(str(payload["sub"]))
     except (KeyError, TypeError, ValueError) as error:
         raise AccessTokenError(
             "The access token subject is invalid."

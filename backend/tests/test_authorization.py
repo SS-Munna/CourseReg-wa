@@ -1,6 +1,7 @@
 import unittest
 from types import SimpleNamespace
 from unittest.mock import patch
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.testclient import TestClient
@@ -46,13 +47,14 @@ class AuthorizationTestCase(unittest.TestCase):
         cls.app.dependency_overrides.clear()
 
     def request_as_role(self, role: str):
+        user_id = uuid4()
         user = SimpleNamespace(
-            id=7,
-            name="RBAC Test User",
+            id=user_id,
+            full_name="RBAC Test User",
             email="rbac@example.com",
             role=role,
         )
-        token = create_access_token(7)
+        token = create_access_token(user_id)
 
         with patch(
             "app.authorization.find_user_by_id",
@@ -73,7 +75,7 @@ class AuthorizationTestCase(unittest.TestCase):
         )
 
     def test_unknown_user_returns_401(self):
-        token = create_access_token(7)
+        token = create_access_token(uuid4())
 
         with patch(
             "app.authorization.find_user_by_id",

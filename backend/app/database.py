@@ -20,7 +20,7 @@ Base = declarative_base()
 
 
 def init_database() -> None:
-    from app.models import course, user  # noqa: F401
+    import app.models  # noqa: F401
 
     Base.metadata.create_all(bind=engine)
 
