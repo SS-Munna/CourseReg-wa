@@ -2,24 +2,41 @@
 
 This backend provides REST API endpoints for the CoursePilot frontend.
 
-The backend is built with FastAPI and uses SQLAlchemy for relational database access. For local development and demonstration, it uses SQLite. The same structure can later connect to PostgreSQL through DATABASE_URL.
+The backend is built with FastAPI and uses SQLAlchemy for relational database access. For local development and demonstration, it uses SQLite. The same structure can connect to PostgreSQL through `DATABASE_URL`.
 
 ## Setup
 
-From the backend folder:
+From the `backend` folder:
 
-    .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```powershell
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+```
 
-## Environment Example
+## Environment Configuration
 
+Create a `.env` file based on `.env.example`:
+
+```text
 APP_NAME=CoursePilot API
 ENVIRONMENT=development
 ALLOWED_ORIGINS=http://localhost:5173
+
 DATABASE_URL=sqlite:///./coursepilot.db
+
+JWT_SECRET_KEY=replace-with-a-long-random-secret
+JWT_ALGORITHM=HS256
+JWT_EXPIRE_MINUTES=30
+```
+
+`JWT_SECRET_KEY` must be replaced with a strong, private value outside local development. Never commit a real JWT secret to GitHub.
 
 ## Run Backend
 
-    .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+From the `backend` folder:
+
+```powershell
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload
+```
 
 ## Useful URLs
 
@@ -27,6 +44,9 @@ DATABASE_URL=sqlite:///./coursepilot.db
 - http://127.0.0.1:8000/health
 - http://127.0.0.1:8000/api/database/status
 - http://127.0.0.1:8000/api/courses
+- http://127.0.0.1:8000/api/auth/register
+- http://127.0.0.1:8000/api/auth/login
+- http://127.0.0.1:8000/api/auth/me
 - http://127.0.0.1:8000/docs
 
 ## Database
@@ -35,19 +55,92 @@ The backend creates local database tables automatically on startup.
 
 Important files:
 
-- app/database.py
-- app/models/course.py
-- app/models/user.py
-- app/seed_data.py
+- `app/database.py`
+- `app/models/course.py`
+- `app/models/user.py`
+- `app/seed_data.py`
+
+## Authentication API
+
+CoursePilot uses signed, expiring JWT access tokens. Each token contains the user ID, issue time, and expiration time. The default expiry period is 30 minutes.
+
+Old `demo-token-*` values are no longer accepted.
+
+### Register
+
+```text
+POST /api/auth/register
+```
+
+Example request:
+
+```json
+{
+  "name": "New Student",
+  "email": "student@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+Successful registration returns HTTP `201` with a signed JWT and the registered user:
+
+```json
+{
+  "token": "<signed-jwt-access-token>",
+  "user": {
+    "id": 1,
+    "name": "New Student",
+    "email": "student@example.com",
+    "role": "student"
+  }
+}
+```
+
+Registration returns HTTP `409` when the email already exists.
+
+### Login
+
+```text
+POST /api/auth/login
+```
+
+Example request:
+
+```json
+{
+  "email": "student@example.com",
+  "password": "SecurePass123!"
+}
+```
+
+Successful login returns HTTP `200` with a signed JWT and the authenticated user. Invalid credentials return HTTP `401`.
+
+### Get Current User
+
+```text
+GET /api/auth/me
+```
+
+This is a protected endpoint. Send the JWT using the Bearer authentication scheme:
+
+```text
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+A valid token returns the current user. Missing, malformed, tampered, expired, and old `demo-token-*` values return HTTP `401 Unauthorized`.
+
+Refresh tokens and role-based endpoint authorization are outside the current authentication scope.
 
 ## Course API
 
+```text
 GET /api/courses
+```
 
 Optional filters:
 
-- search
-- department
-- semester
-- is_mandatory
-- available_only
+- `search`
+- `department`
+- `semester`
+- `is_mandatory`
+- `available_only`
