@@ -6,7 +6,9 @@ from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.errors import api_http_exception_handler
 from app.api.routes.auth import router
 from app.database import get_db
 from app.security import create_access_token
@@ -16,6 +18,10 @@ class AuthMeRouteTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = FastAPI()
+        cls.app.add_exception_handler(
+            StarletteHTTPException,
+            api_http_exception_handler,
+        )
         cls.app.include_router(router)
         cls.app.dependency_overrides[get_db] = lambda: object()
         cls.client = TestClient(cls.app)
@@ -32,6 +38,10 @@ class AuthMeRouteTestCase(unittest.TestCase):
         self.assertEqual(
             response.headers.get("www-authenticate"),
             "Bearer",
+        )
+        self.assertEqual(
+            response.json()["error"]["code"],
+            "AUTHENTICATION_REQUIRED",
         )
 
     def test_invalid_tokens_return_401(self):
@@ -96,10 +106,13 @@ class AuthMeRouteTestCase(unittest.TestCase):
         self.assertEqual(
             response.json(),
             {
-                "id": str(user_id),
-                "name": "JWT Test User",
-                "email": "jwt@example.com",
-                "role": "student",
+                "success": True,
+                "data": {
+                    "id": str(user_id),
+                    "name": "JWT Test User",
+                    "email": "jwt@example.com",
+                    "role": "student",
+                },
             },
         )
         self.assertEqual(

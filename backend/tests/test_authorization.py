@@ -5,7 +5,9 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.testclient import TestClient
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.api.errors import api_http_exception_handler
 from app.authorization import (
     UserRole,
     ensure_owner_or_roles,
@@ -20,6 +22,10 @@ class AuthorizationTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = FastAPI()
+        cls.app.add_exception_handler(
+            StarletteHTTPException,
+            api_http_exception_handler,
+        )
         cls.app.dependency_overrides[get_db] = lambda: object()
 
         staff_roles = (
@@ -88,8 +94,13 @@ class AuthorizationTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 401)
         self.assertEqual(
-            response.json()["detail"],
-            "The access token does not identify an existing user.",
+            response.json()["error"],
+            {
+                "code": "TOKEN_USER_NOT_FOUND",
+                "message": (
+                    "The access token does not identify an existing user."
+                ),
+            },
         )
 
     def test_student_cannot_access_staff_route(self):
@@ -97,8 +108,13 @@ class AuthorizationTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(
-            response.json()["detail"],
-            "You do not have permission to access this resource.",
+            response.json()["error"],
+            {
+                "code": "INSUFFICIENT_PERMISSIONS",
+                "message": (
+                    "You do not have permission to access this resource."
+                ),
+            },
         )
 
     def test_allowed_staff_roles_can_access_route(self):
@@ -120,8 +136,11 @@ class AuthorizationTestCase(unittest.TestCase):
 
         self.assertEqual(response.status_code, 403)
         self.assertEqual(
-            response.json()["detail"],
-            "The account does not have a valid role.",
+            response.json()["error"],
+            {
+                "code": "INVALID_ACCOUNT_ROLE",
+                "message": "The account does not have a valid role.",
+            },
         )
 
     def test_owner_can_access_owned_resource(self):

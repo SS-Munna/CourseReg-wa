@@ -17,9 +17,22 @@ The backend is organized into:
 - routes
 - repositories
 - schemas
+- shared response and exception handling
 - models
 - database configuration
 - seed data
+
+## API Response Design
+
+Shared Pydantic schemas define success, error, request-validation, and
+paginated responses. Application HTTP exceptions, request validation errors,
+database integrity errors, and unexpected exceptions are translated through
+centralized handlers. The handlers preserve required response headers while
+preventing internal database and server details from reaching clients.
+
+Successful authentication responses use the same `success` and `data`
+envelope as the course catalogue and status endpoints. The frontend reads the
+updated authentication envelope without changing session behavior.
 
 ## API Route
 
@@ -81,3 +94,8 @@ Course-integrity tests additionally inspect named constraints and indexes,
 exercise invalid records against SQLite, compile the course table and indexes
 with the PostgreSQL dialect, validate Pydantic seat rules, and verify API error
 translation for both SQLite messages and PostgreSQL constraint names.
+
+API-contract tests verify success envelopes, pagination calculations, invalid
+pagination values, HTTP status and header preservation, field-level request
+validation details, safe database failures, safe unexpected failures, and the
+shared schemas published through OpenAPI.

@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
 
+from app.schemas.common import SuccessResponse
+
 
 class RegisterRequest(BaseModel):
     name: str = Field(..., min_length=2)
@@ -21,7 +23,14 @@ class UserResponse(BaseModel):
     role: str
 
 
-class AuthResponse(BaseModel):
-    success: bool = True
+class AuthData(BaseModel):
     token: str
     user: UserResponse
+
+
+class AuthResponse(SuccessResponse[AuthData]):
+    pass
+
+
+class CurrentUserResponse(SuccessResponse[UserResponse]):
+    pass

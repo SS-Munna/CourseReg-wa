@@ -4,6 +4,8 @@ from fastapi import Request, status
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import IntegrityError
 
+from app.api.errors import error_response_content
+
 
 @dataclass(frozen=True)
 class ConstraintResponse:
@@ -133,10 +135,8 @@ async def database_integrity_error_handler(
 
     return JSONResponse(
         status_code=response.status_code,
-        content={
-            "detail": {
-                "code": response.code,
-                "message": response.message,
-            }
-        },
+        content=error_response_content(
+            code=response.code,
+            message=response.message,
+        ),
     )

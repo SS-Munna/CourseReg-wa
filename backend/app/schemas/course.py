@@ -2,6 +2,8 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.common import SuccessResponse
+
 
 class SectionSchedule(BaseModel):
     day: str = Field(..., description="Class meeting day")
@@ -98,6 +100,5 @@ class CourseUpdate(BaseModel):
         return self
 
 
-class CourseListResponse(BaseModel):
-    success: bool = True
-    data: List[CourseResponse]
+class CourseListResponse(SuccessResponse[List[CourseResponse]]):
+    pass
