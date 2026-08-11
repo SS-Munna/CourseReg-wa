@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.exc import IntegrityError
 
 from app.api.routes.auth import router as auth_router
 from app.api.routes.courses import router as courses_router
@@ -9,6 +10,7 @@ from app.database import (
     get_database_status,
     init_database,
 )
+from app.database_errors import database_integrity_error_handler
 from app.seed_data import seed_database
 
 
@@ -24,6 +26,11 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+app.add_exception_handler(
+    IntegrityError,
+    database_integrity_error_handler,
 )
 
 app.include_router(auth_router)

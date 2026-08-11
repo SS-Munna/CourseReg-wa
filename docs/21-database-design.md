@@ -39,6 +39,42 @@ capacity, and schedule, so it acts as the present section-offering record.
 the internal `courses.id`. The public catalogue identifier remains
 `courses.course_id`.
 
+## Course and Section Integrity
+
+The catalogue table uses named constraints that behave consistently in SQLite
+and PostgreSQL:
+
+| Constraint | Rule |
+|---|---|
+| `uq_courses_course_id` | A public `course_id` identifies only one catalogue row |
+| `uq_courses_code_semester_section` | A code/semester/section offering cannot be duplicated |
+| `ck_courses_credits_positive` | Credits must be greater than zero |
+| `ck_courses_capacity_positive` | Section capacity must be greater than zero |
+| `ck_courses_available_seats_nonnegative` | Available seats cannot be negative |
+| `ck_courses_available_seats_within_capacity` | Available seats cannot exceed capacity |
+| `ck_courses_*_not_blank` | Required course and section labels cannot contain only whitespace |
+
+Section is required because each catalogue row represents a concrete section
+offering. Schema validation applies the same positive-number rules and rejects
+an available-seat value greater than capacity before a write reaches the
+database. Database checks remain authoritative for every write path.
+
+## Course Search Indexes
+
+The catalogue has explicit single-column indexes named
+`ix_courses_code`, `ix_courses_title`, `ix_courses_department`, and
+`ix_courses_semester`. These support the fields exposed by the catalogue search
+and filter API. Actual query plans remain database- and query-pattern-specific.
+
+## Constraint Error Handling
+
+FastAPI has a global SQLAlchemy `IntegrityError` handler. Known SQLite
+constraint messages and PostgreSQL diagnostic constraint names are mapped to
+stable error codes. Duplicate course IDs or offerings return `409 Conflict`;
+invalid values return `422 Unprocessable Content`. Unknown integrity failures
+return a generic conflict response, and raw database messages are never sent
+to clients.
+
 ## Core Constraints
 
 - User email, department code, program code, student number, and employee
@@ -81,6 +117,7 @@ which use repository functions and SQLAlchemy sessions.
 
 SQLAlchemy creates missing tables automatically when the backend starts. It
 does not alter an older table in place. Developers with a `coursepilot.db`
-created before the UUID schema must remove that development-only file and
-restart the backend. This reset removes local demo data and is not a production
-migration strategy. Local database files remain ignored by Git.
+created before the UUID or course-constraint updates must preserve or remove
+that development-only file and restart the backend. This reset removes local
+demo data and is not a production migration strategy. Local database files
+remain ignored by Git.

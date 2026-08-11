@@ -55,6 +55,13 @@ Student/section uniqueness prevents duplicate records. Composite indexes
 support status queries, ordered active waitlists, unread notifications, and
 audit-history lookups.
 
+The catalogue table rejects duplicate public course IDs and duplicate
+code/semester/section offerings. Named checks enforce non-blank required
+fields, positive credits and capacity, and an available-seat range from zero
+through capacity. Explicit indexes cover course code, title, department, and
+semester. FastAPI translates known integrity violations into safe `409` or
+`422` responses without exposing raw database details.
+
 ## Seed Data
 
 Development seed data is inserted when the application starts and the database is empty.
@@ -69,3 +76,8 @@ The unit suite verifies table creation, foreign keys, relationships, UUIDs,
 defaults, timestamps, valid-state queries, state check constraints, and
 student/section uniqueness. These tests run against SQLite while using the
 same SQLAlchemy metadata intended for PostgreSQL.
+
+Course-integrity tests additionally inspect named constraints and indexes,
+exercise invalid records against SQLite, compile the course table and indexes
+with the PostgreSQL dialect, validate Pydantic seat rules, and verify API error
+translation for both SQLite messages and PostgreSQL constraint names.
