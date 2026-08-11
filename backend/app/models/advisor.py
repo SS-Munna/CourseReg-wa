@@ -37,3 +37,7 @@ class Advisor(Base):
     user = relationship("User", back_populates="advisor")
     department = relationship("Department", back_populates="advisors")
     students = relationship("Student", back_populates="advisor")
+    reviewed_registrations = relationship(
+        "Registration",
+        back_populates="reviewer",
+    )
