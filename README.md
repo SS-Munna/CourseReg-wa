@@ -2,7 +2,10 @@
 
 CoursePilot is a student course registration and course catalogue web application.
 
-The current implemented feature is the student course catalogue with search and filtering. Students can view available courses, search by course code or title, filter by department and semester, check live section availability calculated from approved registrations, and validate prerequisite completion and minimum grades.
+The current implemented features include the student course catalogue and
+authenticated draft-course selection. Students can search and filter current
+offerings, check live section availability, validate prerequisite completion
+and minimum grades, and add, list, or remove their own draft selections.
 
 ## Tech Stack
 
@@ -25,6 +28,12 @@ GET /api/courses
 GET /api/courses/{course_id}/availability
 
 GET /api/courses/{course_id}/prerequisite-validation
+
+GET /api/selections
+
+POST /api/selections
+
+DELETE /api/selections/{course_id}
 
 Optional query parameters:
 
@@ -52,6 +61,7 @@ Open:
 - http://127.0.0.1:8000/api/courses
 - http://127.0.0.1:8000/api/courses/cse-101/availability
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
+- http://127.0.0.1:8000/api/selections
 - http://127.0.0.1:8000/docs
 
 ## Frontend Local Setup
@@ -81,7 +91,9 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/schemas/course.py
 - backend/app/repositories/course_repository.py
 - backend/app/repositories/prerequisite_repository.py
+- backend/app/repositories/selection_repository.py
 - backend/app/api/routes/courses.py
+- backend/app/api/routes/selections.py
 - backend/app/seed_data.py
 - backend/app/main.py
 

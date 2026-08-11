@@ -263,6 +263,73 @@ when `eligible` is false. Missing tokens return `401`, non-student roles return
 `403`, missing student profiles or course IDs return `404`, invalid path
 values return `422`, and database failures return a safe `500` response.
 
+## Draft Selection API
+
+```text
+GET /api/selections
+POST /api/selections
+DELETE /api/selections/{course_id}
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+These routes are limited to student accounts and always derive the student
+profile from the authenticated user. A client cannot list or mutate another
+student's selections by supplying an identifier.
+
+Example create request:
+
+```json
+{
+  "course_id": "cse-201"
+}
+```
+
+Example `201 Created` response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "registration_id": "3eca41e7-45bc-498a-8d29-58428aa6355c",
+    "registration_status": "draft",
+    "course": {
+      "course_id": "cse-201",
+      "code": "CSE 201",
+      "title": "Data Structures",
+      "department": "CSE",
+      "semester": "Fall 2026",
+      "instructor": "Dr. Ahmed",
+      "credits": 3,
+      "capacity": 35,
+      "available_seats": 8,
+      "is_mandatory": true,
+      "level": "Undergraduate",
+      "description": "Linear and nonlinear data structures.",
+      "prerequisites": ["CSE 101"],
+      "section": "A",
+      "schedule": []
+    }
+  }
+}
+```
+
+Creation calls the prerequisite guard before inserting. An unmet rule returns
+`422 PREREQUISITES_NOT_MET` with the same structured eligibility data as the
+validation endpoint, and the transaction stores no registration. An unknown
+public course ID returns `404 SECTION_NOT_FOUND`.
+
+Repeated selection is blocked by an application lookup and the database's
+student/section unique constraint. Both paths return
+`409 DUPLICATE_SELECTION`. `GET` returns only current draft records. `DELETE`
+returns the removed registration and public course identifiers; a missing or
+foreign draft returns `404 DRAFT_SELECTION_NOT_FOUND`, and a matching
+non-draft registration returns `409 SELECTION_NOT_DRAFT`.
+
+Current available seats in selection responses are calculated from approved
+registrations. Draft records do not reduce the seat count. Credit-limit,
+schedule-conflict, and final-submission validation remain separate workflow
+stages.
+
 ## Status Codes
 
 | Status Code | Meaning |
@@ -279,10 +346,11 @@ values return `422`, and database failures return a safe `500` response.
 
 ## Database Constraint Errors
 
-Known duplicate course IDs and duplicate code/semester/section offerings
-return `409` with `DUPLICATE_COURSE_ID` or
-`DUPLICATE_COURSE_SECTION`. Invalid credits, capacity, available seats, or
-required text values return `422` with a field-specific code and message.
+Known duplicate course IDs, code/semester/section offerings, and student
+section selections return `409` with `DUPLICATE_COURSE_ID`,
+`DUPLICATE_COURSE_SECTION`, or `DUPLICATE_SELECTION`. Invalid credits,
+capacity, available seats, or required text values return `422` with a
+field-specific code and message.
 
 Unexpected integrity errors use `DATABASE_CONSTRAINT_VIOLATION`. Repository
 failures use `DATABASE_OPERATION_FAILED`. Neither response exposes raw

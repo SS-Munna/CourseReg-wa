@@ -53,6 +53,13 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
                 "postgres-grade": FakePostgreSQLError(
                     "ck_completed_course_grade"
                 ),
+                "sqlite-selection": Exception(
+                    "UNIQUE constraint failed: "
+                    "registrations.student_id, registrations.section_id"
+                ),
+                "postgres-selection": FakePostgreSQLError(
+                    "uq_registration_student_section"
+                ),
                 "unknown": Exception(
                     "sensitive database connection and record details"
                 ),
@@ -135,6 +142,27 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
             invalid_grade.json()["error"]["code"],
             "INVALID_COMPLETED_COURSE_GRADE",
         )
+
+    def test_duplicate_selection_constraint_is_translated(self):
+        sqlite_response = self.client.get(
+            "/constraint/sqlite-selection"
+        )
+        postgres_response = self.client.get(
+            "/constraint/postgres-selection"
+        )
+
+        for response in (sqlite_response, postgres_response):
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(
+                response.json()["error"],
+                {
+                    "code": "DUPLICATE_SELECTION",
+                    "message": (
+                        "This course section is already selected or "
+                        "registered."
+                    ),
+                },
+            )
 
     def test_unknown_integrity_error_is_safe(self):
         response = self.client.get("/constraint/unknown")

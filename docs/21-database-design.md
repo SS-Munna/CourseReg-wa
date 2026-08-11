@@ -158,6 +158,25 @@ prerequisite index supports finding courses affected by a required course.
 The new tables are additive, so `create_all` can create them in existing
 SQLite and PostgreSQL databases without changing or deleting current rows.
 
+## Draft Selection Persistence
+
+A selected course is a `registrations` row whose `registration_status` is
+`draft`. Selection reads filter by both the authenticated student's UUID and
+the draft state, then join the internal section reference to `courses` for
+current catalogue details. Draft rows do not consume an enrolled seat.
+
+The `uq_registration_student_section` constraint prevents a student from
+holding two registration records for the same offering. The API checks for an
+existing row before insertion for a clear response, while the constraint
+remains the race-safe authority if concurrent requests pass that check. Both
+SQLite's unique-constraint signature and PostgreSQL's named diagnostic map to
+`409 DUPLICATE_SELECTION`.
+
+Removal deletes only a row owned by the authenticated student while it is
+still in the draft state. Non-draft records are retained for later status,
+review, drop, and audit workflows. This feature reuses existing tables and
+constraints, so it requires no production reset or schema migration.
+
 ## Authentication Compatibility
 
 JWT subjects contain the authenticated user's UUID as a string. The backend
