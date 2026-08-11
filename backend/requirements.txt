@@ -4,3 +4,5 @@ python-dotenv
 SQLAlchemy
 email-validator
 psycopg2-binary
+PyJWT==2.13.0
+httpx2==2.10.0

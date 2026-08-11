@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -8,32 +9,39 @@ from app.repositories.user_repository import (
     find_user_by_id,
     verify_user_credentials,
 )
-from app.schemas.auth import AuthResponse, LoginRequest, RegisterRequest, UserResponse
+from app.schemas.auth import (
+    AuthResponse,
+    LoginRequest,
+    RegisterRequest,
+    UserResponse,
+)
+from app.security import (
+    AccessTokenError,
+    create_access_token,
+    get_user_id_from_access_token,
+)
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
+bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def make_token(user_id: int) -> str:
-    return f"demo-token-{user_id}"
+def unauthorized_exception(detail: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
 
 
-def get_user_id_from_token(authorization: str | None) -> int | None:
-    if authorization is None:
-        return None
-
-    token = authorization.replace("Bearer ", "").strip()
-
-    if not token.startswith("demo-token-"):
-        return None
-
-    try:
-        return int(token.replace("demo-token-", ""))
-    except ValueError:
-        return None
-
-
-@router.post("/register", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
-def register_student(payload: RegisterRequest, db: Session = Depends(get_db)):
+@router.post(
+    "/register",
+    response_model=AuthResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def register_student(
+    payload: RegisterRequest,
+    db: Session = Depends(get_db),
+):
     existing_user = find_user_by_email(db, payload.email)
 
     if existing_user is not None:
@@ -50,7 +58,7 @@ def register_student(payload: RegisterRequest, db: Session = Depends(get_db)):
     )
 
     return AuthResponse(
-        token=make_token(user.id),
+        token=create_access_token(user.id),
         user=UserResponse(
             id=user.id,
             name=user.name,
@@ -61,7 +69,10 @@ def register_student(payload: RegisterRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=AuthResponse)
-def login_student(payload: LoginRequest, db: Session = Depends(get_db)):
+def login_student(
+    payload: LoginRequest,
+    db: Session = Depends(get_db),
+):
     user = verify_user_credentials(
         db=db,
         email=payload.email,
@@ -75,7 +86,7 @@ def login_student(payload: LoginRequest, db: Session = Depends(get_db)):
         )
 
     return AuthResponse(
-        token=make_token(user.id),
+        token=create_access_token(user.id),
         user=UserResponse(
             id=user.id,
             name=user.name,
@@ -87,16 +98,24 @@ def login_student(payload: LoginRequest, db: Session = Depends(get_db)):
 
 @router.get("/me", response_model=UserResponse)
 def get_current_student(
-    authorization: str | None = Header(default=None),
+    credentials: HTTPAuthorizationCredentials | None = Depends(
+        bearer_scheme
+    ),
     db: Session = Depends(get_db),
 ):
-    user_id = get_user_id_from_token(authorization)
-
-    if user_id is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing or invalid token.",
+    if credentials is None:
+        raise unauthorized_exception(
+            "A Bearer access token is required."
         )
+
+    try:
+        user_id = get_user_id_from_access_token(
+            credentials.credentials
+        )
+    except AccessTokenError as error:
+        raise unauthorized_exception(
+            "The access token is invalid or expired."
+        ) from error
 
     user = find_user_by_id(db, user_id)
 
