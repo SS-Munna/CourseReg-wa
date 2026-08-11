@@ -49,7 +49,7 @@ def register_student(
         token=create_access_token(user.id),
         user=UserResponse(
             id=user.id,
-            name=user.name,
+            name=user.full_name,
             email=user.email,
             role=user.role,
         ),
@@ -77,7 +77,7 @@ def login_student(
         token=create_access_token(user.id),
         user=UserResponse(
             id=user.id,
-            name=user.name,
+            name=user.full_name,
             email=user.email,
             role=user.role,
         ),
@@ -90,7 +90,7 @@ def get_current_student(
 ):
     return UserResponse(
         id=current_user.id,
-        name=current_user.name,
+        name=current_user.full_name,
         email=current_user.email,
         role=current_user.role,
     )

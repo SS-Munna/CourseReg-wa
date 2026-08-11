@@ -41,7 +41,11 @@ Supported filters:
 
 ## Model Design
 
-The Course model represents the courses table. The User model represents demo student users for the future login flow.
+The SQLAlchemy model layer includes users, departments, programs, students,
+advisors, instructors, semesters, and the existing course-catalogue model.
+Core user and academic records use UUID primary keys. Relationships connect
+user accounts to optional academic profiles, departments to their programs
+and staff, programs to students, and advisors to their assigned students.
 
 ## Seed Data
 

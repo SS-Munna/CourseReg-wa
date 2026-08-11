@@ -56,9 +56,21 @@ The backend creates local database tables automatically on startup.
 Important files:
 
 - `app/database.py`
+- `app/models/advisor.py`
 - `app/models/course.py`
+- `app/models/department.py`
+- `app/models/instructor.py`
+- `app/models/program.py`
+- `app/models/semester.py`
+- `app/models/student.py`
 - `app/models/user.py`
 - `app/seed_data.py`
+
+The core user and academic entities use UUID primary keys. If a local
+`coursepilot.db` was created before the UUID model update, stop the backend,
+delete that development-only database file, and restart the backend so
+SQLAlchemy can create the current schema. This reset removes local demo data
+and must not be used as a production migration strategy.
 
 ## Authentication API
 
@@ -88,7 +100,7 @@ Successful registration returns HTTP `201` with a signed JWT and the registered 
 {
   "token": "<signed-jwt-access-token>",
   "user": {
-    "id": 1,
+    "id": "73f37649-8365-4b9d-a92e-584ebaabd0c7",
     "name": "New Student",
     "email": "student@example.com",
     "role": "student"
@@ -129,7 +141,7 @@ Authorization: Bearer <signed-jwt-access-token>
 
 A valid token returns the current user. Missing, malformed, tampered, expired, and old `demo-token-*` values return HTTP `401 Unauthorized`.
 
-Refresh tokens and role-based endpoint authorization are outside the current authentication scope.
+Refresh tokens are outside the current authentication scope.
 
 ## Course API
 
@@ -166,3 +178,22 @@ Authorization utilities are provided in `app/authorization.py`:
 - `ensure_owner_or_roles(...)` allows access through resource ownership or an explicitly permitted administrative role.
 
 Authentication failures return `401 Unauthorized`. Authenticated users lacking the required role or ownership receive `403 Forbidden`. Ownership must be verified by the resource route; having the advisor role alone does not grant access to every student.
+
+## Core academic models
+
+The SQLAlchemy model layer includes the ERD-defined core entities:
+
+- users
+- departments
+- programs
+- students
+- advisors
+- instructors
+- semesters
+
+Users have optional one-to-one student, advisor, and instructor profiles. A
+department contains programs and employs advisors and instructors. Each
+student belongs to one program and is assigned to one advisor. Unique email,
+student-number, employee-number, department-code, and program-code constraints
+are enforced by the database. Program credit ranges, positive trimester/year
+values, and semester date ranges also have database-level checks.
