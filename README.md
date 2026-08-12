@@ -19,7 +19,11 @@ record the queue transition, notification, and audit event. Assigned advisors
 can list and inspect submitted requests, then atomically approve the whole load
 with live capacity protection or reject it with a required reason. Every
 advisor decision records the reviewer and time and creates one student
-notification and one audit event.
+notification and one audit event. Students can read their registration-status
+history, including rejection comments and active waiting-list entries, and
+drop an owned approved course through its configured deadline. A valid drop
+releases the seat and processes one waiting-list promotion in the same
+transaction.
 
 ## Tech Stack
 
@@ -58,6 +62,10 @@ POST /api/selections/schedule-conflict-validation
 DELETE /api/selections/{course_id}
 
 POST /api/registrations/submit
+
+GET /api/registrations
+
+POST /api/registrations/{registration_id}/drop
 
 GET /api/waitlists
 
@@ -99,6 +107,7 @@ Open:
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
 - http://127.0.0.1:8000/api/selections
 - http://127.0.0.1:8000/api/registrations/submit
+- http://127.0.0.1:8000/api/registrations
 - http://127.0.0.1:8000/api/waitlists
 - http://127.0.0.1:8000/docs
 
@@ -125,12 +134,15 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/models/completed_course.py
 - backend/app/models/course.py
 - backend/app/models/course_prerequisite.py
+- backend/app/models/registration_period.py
 - backend/app/models/user.py
 - backend/app/schemas/course.py
 - backend/app/repositories/course_repository.py
 - backend/app/repositories/credit_repository.py
 - backend/app/repositories/prerequisite_repository.py
+- backend/app/repositories/course_drop_repository.py
 - backend/app/repositories/registration_submission_repository.py
+- backend/app/repositories/registration_status_repository.py
 - backend/app/repositories/schedule_conflict_repository.py
 - backend/app/repositories/seat_allocation_repository.py
 - backend/app/repositories/section_transaction.py
@@ -138,6 +150,7 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/repositories/waitlist_promotion_repository.py
 - backend/app/repositories/waitlist_repository.py
 - backend/app/schemas/registration_submission.py
+- backend/app/schemas/registration_status.py
 - backend/app/schemas/schedule_conflict.py
 - backend/app/schemas/seat_allocation.py
 - backend/app/schemas/waitlist.py

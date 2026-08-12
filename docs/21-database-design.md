@@ -18,12 +18,13 @@ The following ERD entities are implemented with UUID primary keys:
 | `students` | Student academic profiles | Belongs to a user, program, and advisor |
 | `advisors` | Academic-advisor profiles | Belongs to a user and department; advises students |
 | `instructors` | Teaching-staff profiles | Belongs to a user and department |
-| `semesters` | Academic terms and date ranges | Referenced by later section and registration models |
+| `semesters` | Academic terms and date ranges | Has registration periods; referenced by section offerings through their term label |
 
 ## Registration and Activity Tables
 
 | Table | Purpose | Main relationships |
 |---|---|---|
+| `registration_periods` | Stores registration windows, course-drop deadlines, and credit bounds | Belongs to a semester |
 | `registrations` | Stores draft, submitted, reviewed, and dropped course requests | Belongs to a student and section offering; optionally reviewed by an advisor |
 | `waitlist_entries` | Stores ordered waiting-list membership and outcomes | Belongs to a student and section offering |
 | `notifications` | Stores user-facing account messages | Belongs to a user |
@@ -97,6 +98,8 @@ to clients.
 - A student's current trimester must be positive.
 - A semester's academic year must be positive, and its end date cannot precede
   its start date.
+- A registration period must close no earlier than it opens; its minimum
+  credit cannot be negative, and its maximum cannot be below its minimum.
 - Registration states are limited to `draft`, `pending`, `approved`,
   `rejected`, and `dropped`.
 - Waitlist states are limited to `active`, `promoted`, `removed`, and
@@ -116,6 +119,8 @@ to clients.
 ## Registration Query Indexes
 
 - Student and registration status support student status pages.
+- Semester/opening and semester/drop-deadline indexes support registration
+  window and drop-eligibility resolution.
 - Section and registration status support seat and advisor workflows.
 - Section, waitlist status, and joining time support deterministic active
   queue order without storing a fragile position number.
@@ -261,6 +266,47 @@ re-entrant in-process mutex across section-sensitive repositories. Any error
 rolls back the registration, waitlist transition, notification, audit event,
 and preceding expirations together. Existing tables, status values, columns,
 constraints, and indexes support this workflow without a migration or reset.
+
+The promotion logic also exposes an in-transaction form that assumes the
+caller already holds the section lock and performs no commit or rollback.
+Course drop uses this form so its seat release and the queue outcome cannot be
+committed independently.
+
+## Registration Status and Course-Drop Transaction
+
+Registration history reads join the authenticated student's registration rows
+to their current `courses` offerings and derive live availability from approved
+enrollment. Draft, pending, approved, rejected, and dropped rows remain visible;
+advisor comments expose rejection reasons. Active `waitlist_entries` are
+composed into the same overview for `all` and `waitlisted` filters.
+
+Drop eligibility resolves `courses.semester` against the normalized label
+formed by `semesters.semester_name` plus `academic_year`. Of matching periods
+whose opening time has arrived, the most recently opened row is authoritative.
+The UTC drop date may equal `drop_deadline`; only a later date is blocked. The
+registration closing time does not block a valid post-registration drop.
+
+The write transaction follows this order:
+
+1. Resolve an owned registration and lock its `courses` row.
+2. Lock and refresh the owned `registrations` row.
+3. Require `approved`, resolve the opened registration period, and enforce the
+   inclusive drop deadline.
+4. Change the row to `dropped`, then flush one student `notifications` row and
+   one JSON `audit_logs` event recording the previous and new states.
+5. Recount enrollment and invoke one in-transaction waiting-list promotion for
+   the released section seat.
+6. Recount final enrollment for the response and commit once.
+
+PostgreSQL compiles the first two writes as `FOR UPDATE OF courses` then
+`FOR UPDATE OF registrations`. SQLite uses the shared re-entrant process mutex.
+Concurrent attempts can therefore change one approval only once. Any deadline,
+state, promotion, flush, or commit failure leaves the approval, queue,
+notifications, and audit history unchanged.
+
+`registration_periods` is an additive ERD table created by SQLAlchemy on
+startup. Existing course, semester, registration, waitlist, notification, and
+audit rows are not deleted or rewritten.
 
 ## Advisor Review Transaction
 
