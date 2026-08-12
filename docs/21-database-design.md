@@ -262,6 +262,44 @@ rolls back the registration, waitlist transition, notification, audit event,
 and preceding expirations together. Existing tables, status values, columns,
 constraints, and indexes support this workflow without a migration or reset.
 
+## Advisor Review Transaction
+
+A final submission is one advisor request: all registration rows for the same
+student with the same non-null `submitted_at` value. The deterministic lowest
+registration UUID is exposed as the request ID; no separate request table or
+stored aggregate is required. Advisor reads join each request to the assigned
+student, account, program, and current course offerings. The existing
+student/advisor and registration status indexes support ownership and history
+filters.
+
+Approval and rejection use one transaction with this order:
+
+1. Resolve the request only through the authenticated advisor's assigned
+   students.
+2. Lock every request `courses` row in internal ID order.
+3. Lock every request `registrations` row in UUID order.
+4. Confirm all rows remain `pending` and still form the same submitted group.
+5. For approval, recount live approved enrollment for every locked section,
+   reject the whole request if any is full, then apply the shared safe-seat
+   transition to every row.
+6. For rejection, change every row to `rejected`; the API requires a nonblank
+   reason before the transaction begins.
+7. Store the same `reviewed_by`, `reviewed_at`, and advisor comment on every
+   row, insert one student notification and one JSON audit event, then commit
+   once.
+
+PostgreSQL compiles the writes with `FOR UPDATE OF courses` followed by
+`FOR UPDATE OF registrations`. Concurrent decisions for one request therefore
+serialize, and only the transaction that still sees a pending request can
+succeed. The same section-first order also serializes approval against seat
+allocation, submission, waiting-list mutation, and promotion. SQLite uses the
+shared re-entrant process mutex. A capacity or persistence failure rolls back
+all request statuses, review metadata, notification, and audit data.
+
+The workflow reuses `registrations.reviewed_by`, `advisor_comment`,
+`reviewed_at`, `notifications`, and `audit_logs`. It adds no table, column,
+migration, or database reset.
+
 ## Prerequisite Validation
 
 Normalized rules in `course_prerequisites` are authoritative for minimum-grade

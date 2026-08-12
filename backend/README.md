@@ -463,6 +463,57 @@ rather than a new public endpoint; the course-drop workflow will call it when a
 seat is released. Existing tables already contain every required field, so no
 migration or database reset is needed.
 
+## Advisor registration-review API
+
+The following routes require an authenticated `advisor` account with an
+advisor profile:
+
+```text
+GET /api/advisor/registration-requests
+GET /api/advisor/registration-requests/{request_id}
+POST /api/advisor/registration-requests/{request_id}/decision
+```
+
+Only requests belonging to students currently assigned to the authenticated
+advisor are visible. The list groups every registration sharing a student and
+`submitted_at` value into one request. It defaults to pending requests and
+supports `status=pending|approved|rejected|all`, `page`, and `page_size`.
+Each summary contains student identity, selected courses, course and credit
+totals, current request status, submission time, and completed decision data.
+
+The detail route returns the selected offerings with live seat availability,
+current prerequisite results, the request credit result, all active schedule
+conflicts, and the student's active waiting-list positions. Any registration
+UUID in that submitted group can identify the request, while responses return
+the deterministic lowest registration UUID as the canonical `request_id`.
+Unassigned and nonexistent requests both return the same safe `404` response.
+
+Decision body:
+
+```json
+{
+  "decision": "approved",
+  "comment": "Approved as planned."
+}
+```
+
+Approval comments are optional. A rejection must include a nonblank `comment`
+of at most 2,000 characters. One decision changes every pending registration
+in the submitted request, records the same reviewer and UTC decision time, and
+creates one student notification and one audit event. Approval locks all
+sections in ID order, locks all request registrations in UUID order, recounts
+live approved enrollment, and uses the shared safe-seat transition. If any
+section is full, the entire request remains pending. Rejection uses the same
+whole-request transaction boundary but does not consume seats.
+
+Concurrent or repeated decisions serialize on the same section and
+registration rows. Only the first pending decision can succeed; later attempts
+receive `409 REGISTRATION_REQUEST_ALREADY_REVIEWED`. PostgreSQL uses row locks,
+and SQLite local/test transactions use the shared in-process section mutex.
+Every failed decision rolls back statuses, review metadata, notification, and
+audit data. The feature reuses existing columns and tables, so no migration or
+database reset is required.
+
 ## Course data integrity
 
 Each current `courses` row represents one course section in one semester.
@@ -562,12 +613,12 @@ selection API. Credit-limit validation is available through the protected
 credit-validation API. Schedule-conflict checks block invalid draft additions
 and are available through the protected conflict-validation API. Pending
 registrations can be approved through the reusable safe-seat allocator. The
-final-submission API revalidates and moves owned drafts to `pending`. Advisor
-review routes remain separate workflow features. The protected waiting-list
-API joins, lists, and leaves full-section queues. The automatic promotion
-service now creates the approved registration, promoted queue state,
-notification, and audit record atomically. Advisor review and course-drop APIs
-remain separate workflow features.
+final-submission API revalidates and moves owned drafts to `pending`. Assigned
+advisors can now list, inspect, approve, or reject those grouped requests. The
+protected waiting-list API joins, lists, and leaves full-section queues. The
+automatic promotion service creates the approved registration, promoted queue
+state, notification, and audit record atomically. The course-drop API remains
+a separate workflow feature.
 
 ## Prerequisite and completed-course models
 

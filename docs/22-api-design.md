@@ -633,6 +633,73 @@ The future course-drop route will invoke this service when its own transaction
 releases a seat. Repository failures roll back all state and remain typed for a
 future HTTP boundary to translate into the standard safe database error.
 
+## Advisor Registration-Review API
+
+```text
+GET /api/advisor/registration-requests
+GET /api/advisor/registration-requests/{request_id}
+POST /api/advisor/registration-requests/{request_id}/decision
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+All three routes require the `advisor` role and a related advisor profile. The
+authenticated advisor can access only requests from students whose current
+`advisor_id` matches that profile. A missing or foreign request uses the same
+`404 REGISTRATION_REQUEST_NOT_FOUND` response so another advisor's assignments
+cannot be enumerated.
+
+Registrations with the same student and non-null `submitted_at` value form one
+request. Its canonical `request_id` is the lowest registration UUID in that
+group. The list defaults to `status=pending`, also accepts `approved`,
+`rejected`, or `all`, and supports `page` plus a `page_size` from 1 through
+100. Results contain student identity, selected course summaries, credit and
+course totals, status, timestamps, and completed advisor comments.
+
+The detail response contains:
+
+- Student number, name, email, program, trimester, and academic status.
+- Every submitted registration and current course offering, including live
+  available seats.
+- Per-course prerequisite validation.
+- Request credit-range validation and active schedule-conflict validation.
+- The student's current active waiting-list entries and queue positions.
+- Existing reviewer, review time, and advisor comment for history reads.
+
+Decision request:
+
+```json
+{
+  "decision": "rejected",
+  "comment": "The prerequisite documentation is incomplete."
+}
+```
+
+`decision` is `approved` or `rejected`. Approval permits an omitted or blank
+comment; blank input is normalized to `null`. Rejection requires a nonblank
+reason of no more than 2,000 characters. A successful response identifies the
+whole request, every changed registration, final state, shared review time,
+reviewing advisor, saved comment, notification, and audit event.
+
+Approval locks all request sections before registration rows and derives
+capacity from live approved enrollment. It changes every pending row only if
+all requested sections still have seats. Rejection changes every pending row
+to rejected. Both outcomes store one reviewer and UTC time across the group
+and atomically create one student notification plus one audit record. A second
+or concurrent decision cannot overwrite the first.
+
+| HTTP | Error code | Condition |
+|---|---|---|
+| `404` | `ADVISOR_PROFILE_NOT_FOUND` | The authenticated advisor account has no profile |
+| `404` | `REGISTRATION_REQUEST_NOT_FOUND` | No assigned request matches the supplied UUID |
+| `409` | `SECTION_FULL` | At least one requested section has no live seat |
+| `409` | `REGISTRATION_REQUEST_ALREADY_REVIEWED` | The grouped request is no longer pending |
+| `422` | `REQUEST_VALIDATION_ERROR` | Decision, rejection reason, UUID, filter, or pagination input is invalid |
+| `500` | `DATABASE_OPERATION_FAILED` | A review read or transaction failed safely |
+
+PostgreSQL uses deterministic `FOR UPDATE` section and registration locks.
+SQLite local/test transactions use the shared in-process section mutex. No
+new schema object or database reset is required.
+
 ## Status Codes
 
 | Status Code | Meaning |

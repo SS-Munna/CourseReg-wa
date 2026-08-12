@@ -75,6 +75,12 @@ POST /api/waitlists
 
 DELETE /api/waitlists/{course_id}
 
+GET /api/advisor/registration-requests
+
+GET /api/advisor/registration-requests/{request_id}
+
+POST /api/advisor/registration-requests/{request_id}/decision
+
 The protected selection routes derive the student profile from the JWT user,
 list only draft registrations, add an eligible section, and delete only an
 owned draft. They return stable errors for missing profiles or sections,
@@ -112,6 +118,16 @@ new public route. It returns whether one student was promoted or whether the
 section was full, the queue was empty, or no active candidate remained
 eligible. The later course-drop API will invoke this operation after releasing
 a seat.
+
+The advisor routes require the advisor role and a linked advisor profile. They
+scope every query to students assigned to that advisor. The list groups a
+student's rows by shared submission time, supports status filters and bounded
+pagination, and exposes current and historical decisions. The details route
+includes student and course information, credit and prerequisite results,
+schedule conflicts, live section availability, and active waiting-list
+positions. The decision route approves an entire pending request with locked
+capacity checks or rejects the entire request with a mandatory reason. Each
+decision also creates one student notification and one audit event.
 
 ## Repository Design
 
@@ -184,6 +200,17 @@ and committed with that registration. One invocation fills at most one seat,
 and every failure rolls the compound transaction back. A shared re-entrant
 SQLite mutex now covers submission, waitlist mutation, seat allocation, and
 promotion while PostgreSQL uses the corresponding section row lock.
+
+The advisor-review repository groups request rows by student and exact
+`submitted_at` value, derives one canonical request UUID, and applies advisor
+ownership in every lookup. Detail reads compose the course, prerequisite,
+credit, conflict, and waitlist repositories into one review payload. Decisions
+lock all request sections in ID order before all request registrations in UUID
+order. Approval checks every section before invoking the shared locked-seat
+transition; rejection updates every row directly. Reviewer metadata, statuses,
+one notification, and one JSON audit record share one commit. A full section,
+second decision, or write failure leaves the entire request unchanged. SQLite
+uses the shared section mutex and PostgreSQL uses row locks.
 
 Supported filters:
 
