@@ -2,10 +2,12 @@ from datetime import date, datetime, timezone
 
 from sqlalchemy.orm import Session
 
+from app.config import settings
 from app.models.course import Course
 from app.models.registration_period import RegistrationPeriod
 from app.models.semester import Semester
 from app.models.user import User
+from app.security import hash_password
 
 
 SAMPLE_COURSES = [
@@ -213,6 +215,48 @@ SAMPLE_REGISTRATION_PERIODS = [
 ]
 
 
+def _seed_bootstrap_system_admin(db: Session) -> None:
+    email = settings.bootstrap_system_admin_email.strip().lower()
+    password = settings.bootstrap_system_admin_password
+
+    if not email and not password:
+        return
+
+    if not email or not password:
+        raise RuntimeError(
+            "Both BOOTSTRAP_SYSTEM_ADMIN_EMAIL and "
+            "BOOTSTRAP_SYSTEM_ADMIN_PASSWORD are required together."
+        )
+
+    if len(password) < 12:
+        raise RuntimeError(
+            "BOOTSTRAP_SYSTEM_ADMIN_PASSWORD must contain at least "
+            "12 characters."
+        )
+
+    existing_user = (
+        db.query(User)
+        .filter(User.email == email)
+        .first()
+    )
+
+    if existing_user is not None:
+        return
+
+    db.add(
+        User(
+            full_name=(
+                settings.bootstrap_system_admin_name.strip()
+                or "System Administrator"
+            ),
+            email=email,
+            password_hash=hash_password(password),
+            role="system-admin",
+            account_status="active",
+        )
+    )
+
+
 def _seed_registration_periods(db: Session) -> None:
     semesters_by_label = {
         (semester.semester_name.casefold(), semester.academic_year): semester
@@ -262,6 +306,8 @@ def _seed_registration_periods(db: Session) -> None:
 
 
 def seed_database(db: Session) -> None:
+    _seed_bootstrap_system_admin(db)
+
     if db.query(Course).count() == 0:
         for course_data in SAMPLE_COURSES:
             db.add(Course(**course_data))

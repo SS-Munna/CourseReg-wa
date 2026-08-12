@@ -11,6 +11,10 @@ vi.mock('../pages/AdvisorDashboardPage', () => ({
   default: () => <div>Advisor workspace loaded</div>,
 }))
 
+vi.mock('../pages/AdminDashboardPage', () => ({
+  default: () => <div>Administration workspace loaded</div>,
+}))
+
 function storeSession(role: string) {
   localStorage.setItem(
     'coursepilot_user',
@@ -41,14 +45,24 @@ describe('role-aware app routing', () => {
     expect(await screen.findByText('Advisor workspace loaded')).toBeVisible()
   })
 
-  it('does not expose the student workspace to an administrator', async () => {
+  it('routes system administrators to the administration workspace', async () => {
     storeSession('system-admin')
 
     render(<App />)
 
     expect(
-      await screen.findByRole('heading', { name: 'System administration' }),
+      await screen.findByText('Administration workspace loaded'),
     ).toBeVisible()
     expect(screen.queryByText('Student workspace loaded')).not.toBeInTheDocument()
+  })
+
+  it('routes department administrators to the administration workspace', async () => {
+    storeSession('department-admin')
+
+    render(<App />)
+
+    expect(
+      await screen.findByText('Administration workspace loaded'),
+    ).toBeVisible()
   })
 })

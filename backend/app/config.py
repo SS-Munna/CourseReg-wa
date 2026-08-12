@@ -26,6 +26,18 @@ class Settings:
     jwt_expire_minutes: int = int(
         os.getenv("JWT_EXPIRE_MINUTES", "30")
     )
+    bootstrap_system_admin_name: str = os.getenv(
+        "BOOTSTRAP_SYSTEM_ADMIN_NAME",
+        "System Administrator",
+    )
+    bootstrap_system_admin_email: str = os.getenv(
+        "BOOTSTRAP_SYSTEM_ADMIN_EMAIL",
+        "",
+    )
+    bootstrap_system_admin_password: str = os.getenv(
+        "BOOTSTRAP_SYSTEM_ADMIN_PASSWORD",
+        "",
+    )
 
 
 settings = Settings()

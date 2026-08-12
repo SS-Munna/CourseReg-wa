@@ -57,6 +57,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </nav>
           )}
 
+          {(role === 'department-admin' || role === 'system-admin') && (
+            <nav className="topbar-nav" aria-label="Administration sections">
+              <a className="catalogue-link" href="#admin-users">
+                Users & access
+              </a>
+              <a className="catalogue-link" href="#admin-create-staff">
+                Provision staff
+              </a>
+            </nav>
+          )}
+
           <button
             className="theme-toggle"
             type="button"

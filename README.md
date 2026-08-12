@@ -235,3 +235,32 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 ## Notes
 
 Local database files are ignored by Git and should not be committed.
+## Department administration
+
+CoursePilot provides role-aware administration for `department-admin` and
+`system-admin` accounts.
+
+- Students continue to self-register with the public student sign-up.
+- Staff roles cannot be selected during public registration.
+- Administrators can provision advisor accounts with a department and employee
+  number, activate or suspend access, search accounts, and review account
+  status from the administration workspace.
+- Department administrators can manage advisor access. System administrators
+  can additionally provision department administrators and manage non-system
+  accounts.
+- Suspended, pending, and rejected accounts cannot authenticate or reuse an
+  existing access token.
+
+For a fresh deployment, the first system administrator can be created without
+hard-coded credentials by setting these backend environment variables and
+redeploying once:
+
+```env
+BOOTSTRAP_SYSTEM_ADMIN_NAME=System Administrator
+BOOTSTRAP_SYSTEM_ADMIN_EMAIL=admin@example.edu
+BOOTSTRAP_SYSTEM_ADMIN_PASSWORD=replace-with-a-strong-unique-password
+```
+
+The bootstrap is idempotent: if that email already exists, CoursePilot does not
+change its role or password. Keep the password in the deployment environment,
+not in source control.
