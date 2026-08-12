@@ -8,6 +8,7 @@ from sqlalchemy import (
     String,
     Uuid,
 )
+from sqlalchemy.orm import relationship
 
 from app.database import Base
 
@@ -38,4 +39,9 @@ class Semester(Base):
         String(50),
         default="upcoming",
         nullable=False,
+    )
+
+    registration_periods = relationship(
+        "RegistrationPeriod",
+        back_populates="semester",
     )

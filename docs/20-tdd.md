@@ -69,6 +69,10 @@ DELETE /api/selections/{course_id}
 
 POST /api/registrations/submit
 
+GET /api/registrations
+
+POST /api/registrations/{registration_id}/drop
+
 GET /api/waitlists
 
 POST /api/waitlists
@@ -116,8 +120,25 @@ prerequisites, schedule conflicts, and safe repository failures.
 Automatic promotion is an internal service for seat-releasing workflows, not a
 new public route. It returns whether one student was promoted or whether the
 section was full, the queue was empty, or no active candidate remained
-eligible. The later course-drop API will invoke this operation after releasing
-a seat.
+eligible. The course-drop repository invokes its caller-owned-transaction form
+after releasing a seat, so no nested commit can expose a partial drop.
+
+The registration-status route defaults to `status=all` and also accepts
+`draft`, `pending`, `approved`, `rejected`, `dropped`, or `waitlisted`. It
+returns only the authenticated student's registration history with live course
+availability, advisor comments, decision timestamps, deadline eligibility, and
+active waiting-list entries when applicable. The drop route accepts an owned
+registration UUID, requires the current state to be `approved`, and permits
+the configured deadline date inclusively. Missing configuration, a passed
+deadline, and an invalid state use distinct safe `409` errors; missing and
+foreign IDs use the same `404` response.
+
+Course drop locks the section before the registration, changes the approval to
+`dropped`, writes the student notification and audit event, and runs at most
+one waiting-list promotion under the same transaction boundary. PostgreSQL row
+locks and the shared SQLite mutex serialize competing writes. Any failure
+rolls back the drop, queue changes, new promoted registration, notifications,
+and audit events together.
 
 The advisor routes require the advisor role and a linked advisor profile. They
 scope every query to students assigned to that advisor. The list groups a
@@ -223,7 +244,7 @@ Supported filters:
 ## Model Design
 
 The SQLAlchemy model layer includes users, departments, programs, students,
-advisors, instructors, semesters, registrations, waitlist entries,
+advisors, instructors, semesters, registration periods, registrations, waitlist entries,
 notifications, audit logs, course prerequisites, completed courses, and the
 existing course-catalogue model. Core user, academic, registration, activity,
 prerequisite, and completed-course records use UUID primary keys.
@@ -336,6 +357,15 @@ safe dependency failures, and complete rollback. A two-thread test proves that
 concurrent processing creates exactly one approval, promotion, notification,
 and audit event for the final seat; PostgreSQL compilation verifies section and
 FIFO entry row locks.
+
+Registration-status and course-drop tests cover all current registration
+states, rejection comments, active waiting-list composition, status filters,
+ownership isolation, role and profile checks, missing and future period
+configuration, inclusive and passed deadlines, safe errors, complete rollback,
+and one-time concurrent drop behavior. The successful queue case proves the
+drop, notification, audit event, promoted waitlist row, promoted registration,
+promotion notification, and promotion audit event commit together. PostgreSQL
+compilation verifies section-first and registration-second row locks.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an

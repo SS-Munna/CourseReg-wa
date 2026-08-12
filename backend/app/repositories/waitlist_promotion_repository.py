@@ -310,20 +310,20 @@ def _promotion_audit_log(
     )
 
 
-def _promote_next_waitlisted_student(
+def promote_next_waitlisted_student_in_locked_section(
     db: Session,
     *,
-    course_id: str,
+    course: Course,
 ) -> WaitlistPromotionResult:
+    """Process one released seat inside a caller-owned transaction.
+
+    The caller must already hold the section transaction lock and remains
+    responsible for committing or rolling back. This form lets course drop
+    include its state change, notification, audit event, and any waiting-list
+    promotion in one atomic commit.
+    """
+
     try:
-        course = locked_promotion_section_query(
-            db,
-            course_id=course_id,
-        ).one_or_none()
-
-        if course is None:
-            raise PromotionSectionNotFoundError(course_id)
-
         approved_enrollment = _approved_enrollment(
             db,
             section_id=course.id,
@@ -336,7 +336,6 @@ def _promote_next_waitlisted_student(
                 approved_enrollment=approved_enrollment,
                 expired_entry_ids=[],
             )
-            db.commit()
             return result
 
         candidates = locked_active_waitlist_query(
@@ -351,7 +350,6 @@ def _promote_next_waitlisted_student(
                 approved_enrollment=approved_enrollment,
                 expired_entry_ids=[],
             )
-            db.commit()
             return result
 
         promoted_at = datetime.now(timezone.utc)
@@ -417,7 +415,6 @@ def _promote_next_waitlisted_student(
                 notification_id=notification.id,
                 audit_log_id=audit_log.id,
             )
-            db.commit()
             return result
 
         db.flush()
@@ -426,6 +423,38 @@ def _promote_next_waitlisted_student(
             outcome="no_eligible_student",
             approved_enrollment=approved_enrollment,
             expired_entry_ids=expired_entry_ids,
+        )
+        return result
+
+    except WaitlistPromotionRepositoryError:
+        raise
+    except (
+        PrerequisiteRepositoryError,
+        ScheduleConflictRepositoryError,
+        SeatAllocationRepositoryError,
+    ) as error:
+        raise WaitlistPromotionRepositoryError(str(error)) from error
+    except Exception as error:
+        raise WaitlistPromotionRepositoryError(str(error)) from error
+
+
+def _promote_next_waitlisted_student(
+    db: Session,
+    *,
+    course_id: str,
+) -> WaitlistPromotionResult:
+    try:
+        course = locked_promotion_section_query(
+            db,
+            course_id=course_id,
+        ).one_or_none()
+
+        if course is None:
+            raise PromotionSectionNotFoundError(course_id)
+
+        result = promote_next_waitlisted_student_in_locked_section(
+            db,
+            course=course,
         )
         db.commit()
         return result
@@ -436,13 +465,6 @@ def _promote_next_waitlisted_student(
     except WaitlistPromotionRepositoryError:
         db.rollback()
         raise
-    except (
-        PrerequisiteRepositoryError,
-        ScheduleConflictRepositoryError,
-        SeatAllocationRepositoryError,
-    ) as error:
-        db.rollback()
-        raise WaitlistPromotionRepositoryError(str(error)) from error
     except Exception as error:
         db.rollback()
         raise WaitlistPromotionRepositoryError(str(error)) from error

@@ -629,9 +629,104 @@ registration through the same locked capacity transition used by direct seat
 allocation. The waitlist update, notification, and audit event share that
 transaction, so callers never observe a partial promotion.
 
-The future course-drop route will invoke this service when its own transaction
-releases a seat. Repository failures roll back all state and remain typed for a
-future HTTP boundary to translate into the standard safe database error.
+Course drop invokes the caller-owned-transaction form when its own transaction
+releases a seat. That form does not commit or roll back independently.
+Repository failures therefore roll back the complete drop and promotion state
+and translate to the standard safe database error at the HTTP boundary.
+
+## Registration Status and Course-Drop API
+
+```text
+GET /api/registrations?status=all
+POST /api/registrations/{registration_id}/drop
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+Both routes require the `student` role and a linked student profile. They
+derive the student from the JWT account and never accept another student ID.
+The `GET` filter accepts `draft`, `pending`, `approved`, `rejected`, `dropped`,
+`waitlisted`, or `all`; the default is `all`.
+
+Status response shape:
+
+```json
+{
+  "success": true,
+  "data": {
+    "registrations": [
+      {
+        "registration_id": "60fe2daf-2ac8-471f-a5f5-d582ff35d61e",
+        "registration_status": "approved",
+        "submitted_at": "2026-08-10T09:00:00Z",
+        "reviewed_at": "2026-08-11T09:00:00Z",
+        "reviewed_by_advisor_id": "88a8326f-c2ca-4956-b3d5-e1ecddc98824",
+        "advisor_comment": "Approved as planned.",
+        "updated_at": "2026-08-11T09:00:00Z",
+        "course": {
+          "course_id": "cse-301-a",
+          "code": "CSE 301",
+          "title": "Database Systems",
+          "department": "CSE",
+          "semester": "Fall 2026",
+          "instructor": "Dr. Hasan",
+          "credits": 3,
+          "capacity": 40,
+          "available_seats": 4,
+          "is_mandatory": true,
+          "level": "Undergraduate",
+          "description": "Database design and SQL.",
+          "prerequisites": ["CSE 201"],
+          "section": "A",
+          "schedule": []
+        },
+        "drop_eligibility": {
+          "eligible": true,
+          "drop_deadline": "2026-10-15",
+          "reason": "eligible",
+          "message": "This approved registration can be dropped."
+        }
+      }
+    ],
+    "waitlist_entries": []
+  }
+}
+```
+
+Each registration exposes its current state, decision metadata, rejection
+comment when present, current course details, and a deterministic drop reason.
+`all` and `waitlisted` include active waiting-list entries with their live
+positions and `registration_status: "waitlisted"`; other filters return an
+empty `waitlist_entries` list.
+
+Only an owned `approved` registration can be dropped. Course semester labels
+match `semester_name + academic_year` case- and whitespace-insensitively. The
+most recently opened matching period supplies the deadline. The current UTC
+date may equal `drop_deadline`; registration `closing_time` does not prevent a
+later valid drop.
+
+A successful drop returns the final `dropped` state, UTC event time, deadline,
+current course availability, drop notification and audit IDs, and the complete
+waiting-list promotion outcome. The write locks the section before the
+registration, creates the drop records, processes at most one released-seat
+promotion, and commits once. A queue-empty result leaves one more available
+seat; a successful promotion consumes that seat immediately.
+
+| HTTP | Error code | Condition |
+|---|---|---|
+| `404` | `STUDENT_PROFILE_NOT_FOUND` | The authenticated student account has no profile |
+| `404` | `REGISTRATION_NOT_FOUND` | No owned registration matches the supplied UUID; foreign IDs use the same response |
+| `409` | `REGISTRATION_NOT_DROPPABLE` | The owned registration is not currently approved |
+| `409` | `DROP_PERIOD_NOT_CONFIGURED` | No matching registration period has opened |
+| `409` | `DROP_DEADLINE_PASSED` | The current UTC date is later than the configured deadline |
+| `422` | `REQUEST_VALIDATION_ERROR` | The UUID or status filter is invalid |
+| `500` | `DATABASE_OPERATION_FAILED` | A history read or drop transaction failed safely |
+
+PostgreSQL uses `FOR UPDATE OF courses` followed by
+`FOR UPDATE OF registrations`, and the promotion locks FIFO active waitlist
+rows inside that section boundary. SQLite uses the shared re-entrant mutex.
+Any persistence or promotion failure rolls back every drop and promotion
+record. The new `registration_periods` table is additive; startup creates it
+without resetting existing data.
 
 ## Advisor Registration-Review API
 

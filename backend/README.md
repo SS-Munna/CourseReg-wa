@@ -47,6 +47,7 @@ From the `backend` folder:
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
 - http://127.0.0.1:8000/api/selections
 - http://127.0.0.1:8000/api/selections/schedule-conflict-validation
+- http://127.0.0.1:8000/api/registrations
 - http://127.0.0.1:8000/api/waitlists
 - http://127.0.0.1:8000/api/auth/register
 - http://127.0.0.1:8000/api/auth/login
@@ -103,6 +104,7 @@ Important files:
 - `app/models/notification.py`
 - `app/models/program.py`
 - `app/models/registration.py`
+- `app/models/registration_period.py`
 - `app/models/semester.py`
 - `app/models/student.py`
 - `app/models/user.py`
@@ -459,9 +461,41 @@ notification, and creates an audit log. The registration and waitlist
 transition use one UTC timestamp, and all four writes share one atomic commit;
 a failure rolls back every record. Results also distinguish a full section, an
 empty queue, and a queue with no eligible student. This is a repository service
-rather than a new public endpoint; the course-drop workflow will call it when a
-seat is released. Existing tables already contain every required field, so no
-migration or database reset is needed.
+rather than a public endpoint. Course drop calls its caller-owned-transaction
+form after releasing a seat, so the drop and any promotion share one commit.
+Existing promotion tables already contain every required field.
+
+## Registration status and course-drop API
+
+The following routes require an authenticated student profile and derive
+ownership exclusively from the JWT account:
+
+```text
+GET /api/registrations?status=all
+POST /api/registrations/{registration_id}/drop
+```
+
+The status read returns draft, pending, approved, rejected, and dropped
+registration rows with current course data, timestamps, reviewer information,
+advisor comments, and per-row drop eligibility. The `status` filter accepts
+those five values plus `waitlisted` and `all`. `all` and `waitlisted` include
+the student's current active waiting-list entries, the presentation status
+`waitlisted`, and live queue positions.
+
+Only an owned `approved` registration is droppable. The course semester is
+matched case- and whitespace-insensitively to the most recently opened
+`registration_periods` row. The UTC drop date may equal the configured
+`drop_deadline`; a later date returns `409 DROP_DEADLINE_PASSED`. Missing or
+future-only period configuration returns `409 DROP_PERIOD_NOT_CONFIGURED`.
+Missing and foreign registration IDs share `404 REGISTRATION_NOT_FOUND`.
+
+A valid write locks the section before the owned registration, changes the
+registration to `dropped`, creates a student notification and JSON audit event,
+then processes at most one waiting-list promotion before committing once.
+PostgreSQL uses section and registration row locks; SQLite local/test writes
+use the shared re-entrant mutex. Any promotion or persistence failure rolls
+back the drop and every related record. The additive registration-period table
+is created on startup; no existing table or row is reset.
 
 ## Advisor registration-review API
 
@@ -591,8 +625,8 @@ values, and semester date ranges also have database-level checks.
 
 ## Registration and activity models
 
-The persistence layer includes registrations, waitlist entries, notifications,
-and audit logs. Registration states are limited to `draft`, `pending`,
+The persistence layer includes registration periods, registrations, waitlist
+entries, notifications, and audit logs. Registration states are limited to `draft`, `pending`,
 `approved`, `rejected`, and `dropped`. Waitlist states are limited to `active`,
 `promoted`, `removed`, and `expired`.
 
@@ -617,8 +651,9 @@ final-submission API revalidates and moves owned drafts to `pending`. Assigned
 advisors can now list, inspect, approve, or reject those grouped requests. The
 protected waiting-list API joins, lists, and leaves full-section queues. The
 automatic promotion service creates the approved registration, promoted queue
-state, notification, and audit record atomically. The course-drop API remains
-a separate workflow feature.
+state, notification, and audit record atomically. Registration-status reads
+now expose that history to the owning student, and course drop combines the
+approved-to-dropped transition with the promotion operation atomically.
 
 ## Prerequisite and completed-course models
 
