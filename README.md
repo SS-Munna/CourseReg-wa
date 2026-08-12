@@ -14,6 +14,9 @@ blocked with both course and time details. Approved-seat allocation rechecks
 capacity inside a locked transaction, so concurrent requests cannot consume
 the same final seat. Final submission revalidates the student's current load
 and atomically moves only valid draft selections to `pending` advisor review.
+The dashboard now exposes that full workflow through an interactive selected-course
+panel, live credit summary, actionable validation messages, and a final review
+dialog before submission.
 Eligible students can join or leave full-section waiting lists and see their
 live first-come, first-served queue positions. When a seat is released, the
 promotion service can atomically approve the first still-eligible student and
@@ -40,6 +43,14 @@ transaction.
 ## Current Feature Flow
 
 React Student Dashboard -> frontend API services -> FastAPI endpoints -> SQLAlchemy repositories -> registration and course tables -> shared JSON responses -> dashboard summaries and course cards
+
+## Student Registration Workflow
+
+1. Sign in with a student account and confirm that the registration period is open.
+2. Browse the current-semester catalogue and add available sections to the draft selection.
+3. Review selected sections, schedules, and the active credit-load summary; remove or replace drafts as needed.
+4. Open final review. The application rechecks credit limits and schedule conflicts and displays any prerequisite or availability problem returned by the API.
+5. Submit the valid selection. Draft registrations move to `pending` for advisor review.
 
 ## Main API Endpoints
 
@@ -183,10 +194,15 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - frontend/src/components/CourseDetailsModal/
 - frontend/src/components/CourseFilters/
 - frontend/src/components/CourseStats/
+- frontend/src/components/RegistrationWorkspace/
+- frontend/src/components/RegistrationReviewModal/
+- frontend/src/services/apiClient.ts
 - frontend/src/services/courseApi.ts
 - frontend/src/services/dashboardApi.ts
+- frontend/src/services/selectionApi.ts
 - frontend/src/types/course.ts
 - frontend/src/types/dashboard.ts
+- frontend/src/types/selection.ts
 
 ## Notes
 

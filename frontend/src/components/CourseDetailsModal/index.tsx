@@ -6,9 +6,22 @@ import type { Course, SectionAvailability } from '../../types/course'
 type CourseDetailsModalProps = {
   course: Course
   onClose: () => void
+  onAddToSelection?: (course: Course) => void
+  isSelected?: boolean
+  selectionBusy?: boolean
+  selectionLoading?: boolean
+  selectionDisabledReason?: string
 }
 
-function CourseDetailsModal({ course, onClose }: CourseDetailsModalProps) {
+function CourseDetailsModal({
+  course,
+  onClose,
+  onAddToSelection,
+  isSelected = false,
+  selectionBusy = false,
+  selectionLoading = false,
+  selectionDisabledReason = '',
+}: CourseDetailsModalProps) {
   const [details, setDetails] = useState<Course | SectionAvailability>(course)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -66,6 +79,9 @@ function CourseDetailsModal({ course, onClose }: CourseDetailsModalProps) {
     'enrollment' in details
       ? details.enrollment
       : Math.max(details.capacity - details.available_seats, 0)
+  const currentSelectionReason = isFull
+    ? 'This section is full. Waiting-list options are handled separately.'
+    : selectionDisabledReason
 
   return (
     <div
@@ -177,6 +193,35 @@ function CourseDetailsModal({ course, onClose }: CourseDetailsModalProps) {
                 : 'No prerequisites required.'}
             </p>
           </section>
+
+          {onAddToSelection && (
+            <div className="modal-selection-action">
+              <div>
+                <strong>
+                  {isSelected ? 'Already in your selection' : 'Ready to add this section?'}
+                </strong>
+                <span>
+                  {isSelected
+                    ? 'Return to your registration workspace to review or remove it.'
+                    : currentSelectionReason ||
+                      'It will remain a draft until you complete final review.'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onAddToSelection(course)}
+                disabled={
+                  isSelected || selectionBusy || Boolean(currentSelectionReason)
+                }
+              >
+                {isSelected
+                  ? 'Selected'
+                  : selectionLoading
+                    ? 'Adding…'
+                    : 'Add to selection'}
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </div>
