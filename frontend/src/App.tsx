@@ -3,6 +3,7 @@ import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import AppLayout from './layouts/AppLayout'
+import AdminDashboardPage from './pages/AdminDashboardPage'
 import AdvisorDashboardPage from './pages/AdvisorDashboardPage'
 import LoginPage from './pages/LoginPage'
 import RoleWorkspacePage from './pages/RoleWorkspacePage'
@@ -21,6 +22,11 @@ function AppContent() {
     workspace = <StudentDashboardPage />
   } else if (user.role === 'advisor') {
     workspace = <AdvisorDashboardPage />
+  } else if (
+    user.role === 'department-admin' ||
+    user.role === 'system-admin'
+  ) {
+    workspace = <AdminDashboardPage />
   } else {
     workspace = <RoleWorkspacePage />
   }

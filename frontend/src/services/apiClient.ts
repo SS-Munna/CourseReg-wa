@@ -11,7 +11,7 @@ type ApiErrorPayload = {
 
 type RequestOptions = {
   token: string
-  method?: 'GET' | 'POST' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
   body?: unknown
   fallbackMessage: string
   fallbackCode: string
