@@ -445,6 +445,31 @@ meeting is checked. The strict overlap rule permits adjacent meetings whose
 boundary times are equal. Stored times must use 24-hour `HH:MM` format;
 malformed stored values return a safe `500 DATABASE_OPERATION_FAILED`.
 
+## Seat Allocation Service Contract
+
+Issue #26 adds no public route. It provides the repository operation that
+future advisor approval and waiting-list promotion routes must call instead of
+writing `registration_status = 'approved'` directly.
+
+The operation accepts a registration UUID and, on success, returns:
+
+- Registration, student, public course, code, and section identifiers.
+- The final `approved` state.
+- Whether this call newly allocated the seat or was an idempotent retry.
+- Section capacity, approved enrollment, and remaining seats.
+
+Only `pending` records can receive a new seat. Missing registrations,
+non-pending states, full sections, and repository failures are distinct typed
+errors so later routes can map them to stable safe API responses. The full
+error includes only safe capacity values; raw database errors must continue to
+use `DATABASE_OPERATION_FAILED` at the HTTP boundary.
+
+PostgreSQL locks the section row and recounts approved enrollment in the same
+transaction before changing status. A concurrent request for the same final
+seat waits, then observes the committed approval and receives the full-section
+result. SQLite local/test transactions use a process mutex because SQLite does
+not implement `SELECT ... FOR UPDATE`.
+
 ## Status Codes
 
 | Status Code | Meaning |

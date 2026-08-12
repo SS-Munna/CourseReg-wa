@@ -342,6 +342,29 @@ produce a safe database-operation response rather than exposing stored data.
 The reusable `require_no_schedule_conflicts` guard is intended for the final
 submission transaction in Issue #27.
 
+## Safe seat allocation
+
+`allocate_registration_seat` is the reusable write boundary for changing a
+pending registration to `approved`. It locks the section row before counting
+approved registrations, rejects a full section without changing the pending
+row, and commits the status change in the same transaction. An already
+approved registration is an idempotent success, while draft, rejected, and
+dropped registrations are rejected as invalid allocation states.
+
+PostgreSQL uses `SELECT ... FOR UPDATE OF courses`, so requests for the same
+section wait and recount enrollment after the preceding transaction commits.
+This prevents two workers from assigning the final seat. SQLite does not
+support `FOR UPDATE`; local and test allocations therefore hold an in-process
+transaction mutex through commit. The PostgreSQL row lock remains the
+cross-process production guarantee.
+
+The result reports the registration and section identifiers, whether a new
+allocation occurred, capacity, approved enrollment, and remaining seats.
+Full-section and invalid-state errors remain typed for future advisor and
+waiting-list APIs to translate into safe responses. No public allocation
+endpoint is introduced in this issue; advisor approval and automatic
+waitlist promotion will reuse this transaction boundary.
+
 ## Course data integrity
 
 Each current `courses` row represents one course section in one semester.
@@ -439,9 +462,10 @@ the registration models' `section_id` foreign key points to the internal
 Draft registrations are created, listed, and removed through the protected
 selection API. Credit-limit validation is available through the protected
 credit-validation API. Schedule-conflict checks block invalid draft additions
-and are available through the protected conflict-validation API. Final
-submission, notifications, and audit-log automation remain separate workflow
-features.
+and are available through the protected conflict-validation API. Pending
+registrations can be approved through the reusable safe-seat allocator. Final
+submission, advisor routes, notifications, and audit-log automation remain
+separate workflow features.
 
 ## Prerequisite and completed-course models
 

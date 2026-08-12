@@ -120,6 +120,14 @@ allows adjacent meetings while detecting partial, contained, and exact
 overlaps. The repository returns every conflict in deterministic course order
 and exposes reusable candidate-selection and final-load guards.
 
+The seat-allocation repository owns the capacity-sensitive transition from
+`pending` to `approved`. It locks the target section before recounting approved
+rows, then checks capacity, changes status, flushes, and commits while the lock
+is still held. Lock order is section first and registration second. Idempotent
+approved retries do not consume another seat, and every rejected allocation
+rolls back. SQLite tests use an in-process mutex because that dialect omits
+`FOR UPDATE`; PostgreSQL uses a row lock across application workers.
+
 Supported filters:
 
 - search
@@ -213,6 +221,13 @@ semester/day matching, multiple weekly meetings, conflict-free validation,
 all-conflict reporting, student isolation, malformed stored-data safety,
 mutation rollback, reusable final validation, OpenAPI schemas, and PostgreSQL
 query compilation.
+
+Safe-seat tests verify final-seat success, full-section rollback, active and
+inactive registration-state handling, idempotent retries, missing records,
+wrapped database failures, and the structured allocation result. A two-thread
+test proves that one final seat produces one approval and one full-section
+result. PostgreSQL compilation separately verifies that the section query ends
+with `FOR UPDATE OF courses` before enrollment is recounted.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an
