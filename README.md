@@ -10,7 +10,8 @@ whether their active credit load is within program limits. Overlapping class
 schedules are detected across draft, pending, and approved registrations and
 blocked with both course and time details. Approved-seat allocation rechecks
 capacity inside a locked transaction, so concurrent requests cannot consume
-the same final seat.
+the same final seat. Final submission revalidates the student's current load
+and atomically moves only valid draft selections to `pending` advisor review.
 
 ## Tech Stack
 
@@ -48,6 +49,8 @@ POST /api/selections/schedule-conflict-validation
 
 DELETE /api/selections/{course_id}
 
+POST /api/registrations/submit
+
 Optional query parameters:
 
 - search
@@ -75,6 +78,7 @@ Open:
 - http://127.0.0.1:8000/api/courses/cse-101/availability
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
 - http://127.0.0.1:8000/api/selections
+- http://127.0.0.1:8000/api/registrations/submit
 - http://127.0.0.1:8000/docs
 
 ## Frontend Local Setup
@@ -105,12 +109,15 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/repositories/course_repository.py
 - backend/app/repositories/credit_repository.py
 - backend/app/repositories/prerequisite_repository.py
+- backend/app/repositories/registration_submission_repository.py
 - backend/app/repositories/schedule_conflict_repository.py
 - backend/app/repositories/seat_allocation_repository.py
 - backend/app/repositories/selection_repository.py
+- backend/app/schemas/registration_submission.py
 - backend/app/schemas/schedule_conflict.py
 - backend/app/schemas/seat_allocation.py
 - backend/app/api/routes/courses.py
+- backend/app/api/routes/registrations.py
 - backend/app/api/routes/selections.py
 - backend/app/seed_data.py
 - backend/app/main.py

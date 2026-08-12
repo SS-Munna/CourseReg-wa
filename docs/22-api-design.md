@@ -366,8 +366,8 @@ without submitting or changing any registration. A valid inclusive range
 returns the same `200` response. Below-minimum and above-maximum loads return
 `422 CREDIT_LOAD_BELOW_MINIMUM` or `422 CREDIT_LOAD_ABOVE_MAXIMUM`; `details`
 contains the complete calculation, including the current total and exact
-shortfall or excess. The final registration transaction in Issue #27 will
-call this same guard before moving draft records to pending.
+shortfall or excess. Final registration submission calls this same guard before
+moving draft records to pending.
 
 ## Schedule-Conflict Validation API
 
@@ -469,6 +469,58 @@ transaction before changing status. A concurrent request for the same final
 seat waits, then observes the committed approval and receives the full-section
 result. SQLite local/test transactions use a process mutex because SQLite does
 not implement `SELECT ... FOR UPDATE`.
+
+## Final Registration Submission API
+
+```text
+POST /api/registrations/submit
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+The route accepts no student ID or request body. It derives the student profile
+from the JWT account and submits only that student's current draft rows. Before
+any state change, one transaction rechecks normalized duplicate-course and
+completed-course restrictions, prerequisites, inclusive program credit limits,
+all active schedule pairs, and live approved enrollment for every selected
+section.
+
+A successful request returns `200` and changes all locked drafts to `pending`.
+Every submitted row receives the same UTC timestamp. Existing pending and
+approved rows can participate in validation but are not submitted again.
+
+| Response field | Meaning |
+|---|---|
+| `registration_status` | Overall successful result; always `pending` |
+| `submitted_count` | Number of draft rows transitioned by this request |
+| `submitted_at` | Shared UTC submission timestamp |
+| `registrations` | Submitted registration IDs, pending states, timestamps, and current course details |
+| `credit_validation` | Successful current credit total and program range |
+| `schedule_validation` | Successful conflict-free validation result |
+| `message` | User-facing confirmation that advisor review is pending |
+
+Validation failures leave every draft and `submitted_at` value unchanged.
+Clients can use the stable error code and safe `details` object to show the
+required correction:
+
+| HTTP | Error code | Blocking condition |
+|---|---|---|
+| `404` | `STUDENT_PROFILE_NOT_FOUND` | The authenticated student account has no profile |
+| `409` | `NO_DRAFT_SELECTIONS` | No current draft exists to submit |
+| `409` | `DUPLICATE_COURSE_SELECTIONS` | Active rows contain the same normalized course code and at least one is a draft |
+| `409` | `SCHEDULE_CONFLICT` | Two active meetings overlap in the same semester |
+| `409` | `SECTION_FULL` | Live approved enrollment has reached one or more selected-section capacities |
+| `422` | `COURSE_ALREADY_COMPLETED` | A selected course code matches a successfully completed course |
+| `422` | `PREREQUISITES_NOT_MET` | At least one selected course fails its current prerequisite rules |
+| `422` | `CREDIT_LOAD_BELOW_MINIMUM` | The current active load is below the program minimum |
+| `422` | `CREDIT_LOAD_ABOVE_MAXIMUM` | The current active load exceeds the program maximum |
+| `500` | `DATABASE_OPERATION_FAILED` | A repository or write operation failed safely |
+
+PostgreSQL locks selected sections in deterministic ID order before locking
+draft registrations, then holds those locks through validation and commit.
+SQLite uses an in-process mutex for the equivalent local/test transaction.
+Concurrent submissions therefore transition each draft at most once. This
+endpoint creates no approved enrollment; advisor approval remains responsible
+for calling the safe-seat allocator and rechecking capacity.
 
 ## Status Codes
 

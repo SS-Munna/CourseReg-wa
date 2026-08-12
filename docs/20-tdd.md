@@ -67,6 +67,8 @@ POST /api/selections/schedule-conflict-validation
 
 DELETE /api/selections/{course_id}
 
+POST /api/registrations/submit
+
 The protected selection routes derive the student profile from the JWT user,
 list only draft registrations, add an eligible section, and delete only an
 owned draft. They return stable errors for missing profiles or sections,
@@ -81,9 +83,16 @@ above the inclusive limits without changing any registration status.
 
 The schedule-conflict read route reports every overlap across the student's
 draft, pending, and approved registrations. Its validation action applies the
-same reusable blocking guard intended for final submission. Selection creation
+same reusable blocking guard used by final submission. Selection creation
 also invokes a candidate-specific form of the guard and returns a structured
 `409` containing both course/section records and the exact overlapping time.
+
+The protected final-submission route derives the student from the JWT account,
+revalidates the current draft load, and changes every valid owned draft to
+`pending` in one transaction. It returns the submitted registrations, one
+shared submission timestamp, and the successful credit and schedule results.
+Specific `409` and `422` responses identify the rule that blocked submission;
+unexpected repository failures retain the safe shared `500` contract.
 
 ## Repository Design
 
@@ -127,6 +136,15 @@ is still held. Lock order is section first and registration second. Idempotent
 approved retries do not consume another seat, and every rejected allocation
 rolls back. SQLite tests use an in-process mutex because that dialect omits
 `FOR UPDATE`; PostgreSQL uses a row lock across application workers.
+
+The registration-submission repository locks all selected sections in stable
+ID order before locking the student's draft registration rows. It checks
+normalized duplicates and completed courses, then invokes the existing
+prerequisite, credit, and schedule guards and recounts approved enrollment.
+Only after every validation succeeds does it apply one UTC timestamp and move
+the locked drafts to `pending`. Validation and write failures roll back the
+whole transaction. SQLite serializes local submissions with a process mutex;
+PostgreSQL uses section-first and registration-second row locks.
 
 Supported filters:
 
@@ -228,6 +246,14 @@ wrapped database failures, and the structured allocation result. A two-thread
 test proves that one final seat produces one approval and one full-section
 result. PostgreSQL compilation separately verifies that the section query ends
 with `FOR UPDATE OF courses` before enrollment is recounted.
+
+Final-submission tests cover successful draft-to-pending transitions, ownership
+isolation, preservation of existing pending and approved rows, both credit
+limit directions, prerequisite and schedule revalidation, normalized duplicate
+and completed-course checks, live full-section detection, safe errors, and
+all-or-nothing rollback. A two-thread test proves that concurrent submissions
+transition each draft once, while PostgreSQL compilation verifies deterministic
+section and registration `FOR UPDATE` queries.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an
