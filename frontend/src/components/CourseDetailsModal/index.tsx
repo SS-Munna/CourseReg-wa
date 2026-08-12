@@ -7,20 +7,30 @@ type CourseDetailsModalProps = {
   course: Course
   onClose: () => void
   onAddToSelection?: (course: Course) => void
+  onJoinWaitlist?: (course: Course) => void
   isSelected?: boolean
+  isWaitlisted?: boolean
   selectionBusy?: boolean
   selectionLoading?: boolean
   selectionDisabledReason?: string
+  waitlistBusy?: boolean
+  waitlistLoading?: boolean
+  waitlistDisabledReason?: string
 }
 
 function CourseDetailsModal({
   course,
   onClose,
   onAddToSelection,
+  onJoinWaitlist,
   isSelected = false,
+  isWaitlisted = false,
   selectionBusy = false,
   selectionLoading = false,
   selectionDisabledReason = '',
+  waitlistBusy = false,
+  waitlistLoading = false,
+  waitlistDisabledReason = '',
 }: CourseDetailsModalProps) {
   const [details, setDetails] = useState<Course | SectionAvailability>(course)
   const [loading, setLoading] = useState(true)
@@ -79,9 +89,46 @@ function CourseDetailsModal({
     'enrollment' in details
       ? details.enrollment
       : Math.max(details.capacity - details.available_seats, 0)
-  const currentSelectionReason = isFull
-    ? 'This section is full. Waiting-list options are handled separately.'
+  const waitlistMode =
+    isFull && !isSelected && Boolean(onJoinWaitlist)
+  const actionReason = waitlistMode
+    ? waitlistDisabledReason
     : selectionDisabledReason
+  const actionBusy = waitlistMode ? waitlistBusy : selectionBusy
+  const actionLoading = waitlistMode ? waitlistLoading : selectionLoading
+  const actionDisabled = waitlistMode
+    ? isWaitlisted || actionBusy || Boolean(actionReason)
+    : isSelected || isWaitlisted || actionBusy || Boolean(actionReason)
+
+  const actionLabel = isWaitlisted
+    ? 'Waitlisted'
+    : waitlistMode
+      ? actionLoading
+        ? 'Joining…'
+        : 'Join waitlist'
+      : isSelected
+        ? 'Selected'
+        : actionLoading
+          ? 'Adding…'
+          : 'Add to selection'
+
+  const actionHeading = isWaitlisted
+    ? 'Already on this waiting list'
+    : waitlistMode
+      ? 'This section is full'
+      : isSelected
+        ? 'Already in your selection'
+        : 'Ready to add this section?'
+
+  const actionCopy = isWaitlisted
+    ? 'Your live queue position is available in the Waiting list section.'
+    : waitlistMode
+      ? actionReason ||
+        'Join the first-come, first-served queue and monitor your live position.'
+      : isSelected
+        ? 'Return to your registration workspace to review or remove it.'
+        : actionReason ||
+          'It will remain a draft until you complete final review.'
 
   return (
     <div
@@ -194,31 +241,25 @@ function CourseDetailsModal({
             </p>
           </section>
 
-          {onAddToSelection && (
+          {(onAddToSelection || onJoinWaitlist) && (
             <div className="modal-selection-action">
               <div>
-                <strong>
-                  {isSelected ? 'Already in your selection' : 'Ready to add this section?'}
-                </strong>
-                <span>
-                  {isSelected
-                    ? 'Return to your registration workspace to review or remove it.'
-                    : currentSelectionReason ||
-                      'It will remain a draft until you complete final review.'}
-                </span>
+                <strong>{actionHeading}</strong>
+                <span>{actionCopy}</span>
               </div>
               <button
                 type="button"
-                onClick={() => onAddToSelection(course)}
-                disabled={
-                  isSelected || selectionBusy || Boolean(currentSelectionReason)
-                }
+                onClick={() => {
+                  if (waitlistMode && onJoinWaitlist) {
+                    onJoinWaitlist(course)
+                    return
+                  }
+
+                  onAddToSelection?.(course)
+                }}
+                disabled={actionDisabled}
               >
-                {isSelected
-                  ? 'Selected'
-                  : selectionLoading
-                    ? 'Adding…'
-                    : 'Add to selection'}
+                {actionLabel}
               </button>
             </div>
           )}

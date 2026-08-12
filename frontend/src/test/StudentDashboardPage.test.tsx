@@ -18,6 +18,7 @@ import {
   validateFinalCreditLoad,
   validateFinalSchedule,
 } from '../services/selectionApi'
+import { joinWaitlist, leaveWaitlist } from '../services/waitlistApi'
 import type { Course } from '../types/course'
 import type {
   CreditLoadValidation,
@@ -51,6 +52,11 @@ vi.mock('../services/selectionApi', () => ({
   validateFinalSchedule: vi.fn(),
 }))
 
+vi.mock('../services/waitlistApi', () => ({
+  joinWaitlist: vi.fn(),
+  leaveWaitlist: vi.fn(),
+}))
+
 const course: Course = {
   course_id: 'cse-315-a',
   code: 'CSE 315',
@@ -64,6 +70,42 @@ const course: Course = {
   is_mandatory: true,
   level: 'Undergraduate',
   section: 'A',
+}
+
+const fullCourse: Course = {
+  ...course,
+  course_id: 'cse-410-a',
+  code: 'CSE 410',
+  title: 'Distributed Systems',
+  capacity: 40,
+  available_seats: 0,
+}
+
+const pendingRegistration = {
+  registration_id: 'registration-1',
+  registration_status: 'pending' as const,
+  submitted_at: '2026-08-12T10:00:00Z',
+  reviewed_at: null,
+  reviewed_by_advisor_id: null,
+  advisor_comment: null,
+  updated_at: '2026-08-12T10:00:00Z',
+  course,
+  drop_eligibility: {
+    eligible: false,
+    drop_deadline: '2026-10-15',
+    reason: 'registration_not_approved' as const,
+    message: 'Only an approved registration can be dropped.',
+  },
+}
+
+const waitlistEntry = {
+  waitlist_entry_id: 'waitlist-1',
+  waitlist_status: 'active' as const,
+  registration_status: 'waitlisted' as const,
+  joined_at: '2026-08-12T10:30:00Z',
+  queue_position: 2,
+  total_waiting: 5,
+  course: fullCourse,
 }
 
 const belowMinimumCredit: CreditLoadValidation = {
@@ -127,14 +169,8 @@ describe('StudentDashboardPage', () => {
       message: 'Course registration is open for this semester.',
     })
     vi.mocked(fetchRegistrationOverview).mockResolvedValue({
-      registrations: [
-        {
-          registration_id: 'registration-1',
-          registration_status: 'pending',
-          course,
-        },
-      ],
-      waitlist_entries: [{ registration_status: 'waitlisted' }],
+      registrations: [pendingRegistration],
+      waitlist_entries: [waitlistEntry],
     })
     vi.mocked(fetchDraftSelections).mockResolvedValue({
       selections: [],
@@ -166,6 +202,15 @@ describe('StudentDashboardPage', () => {
       schedule_validation: scheduleValidation,
       message: 'Registration submitted for advisor review.',
     })
+    vi.mocked(joinWaitlist).mockResolvedValue(waitlistEntry)
+    vi.mocked(leaveWaitlist).mockResolvedValue({
+      waitlist_entry_id: waitlistEntry.waitlist_entry_id,
+      course_id: waitlistEntry.course.course_id,
+      waitlist_status: 'removed',
+      removed_at: '2026-08-12T11:00:00Z',
+      previous_queue_position: 2,
+      remaining_waiting: 4,
+    })
   })
 
   it('renders the authenticated dashboard, summary, period, and catalogue', async () => {
@@ -177,11 +222,23 @@ describe('StudentDashboardPage', () => {
 
     expect(await screen.findByText('Welcome back, Samira')).toBeVisible()
     expect(await screen.findByText('Registration open')).toBeVisible()
-    expect(await screen.findByText('Operating Systems')).toBeVisible()
+    const catalogueSection = await screen.findByRole('region', {
+      name: 'Course catalogue',
+    })
+    expect(within(catalogueSection).getByText('Operating Systems')).toBeVisible()
 
-    const pendingCard = screen.getByText('Pending review').closest('article')
-    const waitlistCard = screen.getByText('Waitlisted').closest('article')
-    const creditsCard = screen.getByText('Selected credits').closest('article')
+    const summarySection = await screen.findByRole('region', {
+      name: 'Registration summary',
+    })
+    const pendingCard = within(summarySection)
+      .getByText('Pending review')
+      .closest('article')
+    const waitlistCard = within(summarySection)
+      .getByText('Waitlisted')
+      .closest('article')
+    const creditsCard = within(summarySection)
+      .getByText('Selected credits')
+      .closest('article')
 
     expect(within(pendingCard!).getByText('1')).toBeVisible()
     expect(within(waitlistCard!).getByText('1')).toBeVisible()
@@ -207,7 +264,10 @@ describe('StudentDashboardPage', () => {
     expect(
       await screen.findByText(/the academic profile is still being set up/i),
     ).toBeVisible()
-    expect(await screen.findByText('Operating Systems')).toBeVisible()
+    const catalogueSection = await screen.findByRole('region', {
+      name: 'Course catalogue',
+    })
+    expect(within(catalogueSection).getByText('Operating Systems')).toBeVisible()
     expect(screen.getByRole('button', { name: 'View section details' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Add to selection' })).toBeDisabled()
   })
@@ -333,6 +393,91 @@ describe('StudentDashboardPage', () => {
     expect(
       await screen.findByText(/1 course submitted for advisor review/i),
     ).toBeVisible()
+  })
+
+  it('shows registration outcomes, advisor comments, and live waitlist position', async () => {
+    vi.mocked(fetchRegistrationOverview).mockResolvedValue({
+      registrations: [
+        {
+          ...pendingRegistration,
+          registration_id: 'registration-rejected',
+          registration_status: 'rejected',
+          reviewed_at: '2026-08-12T12:30:00Z',
+          advisor_comment: 'Please choose the section that fits your study plan.',
+        },
+      ],
+      waitlist_entries: [waitlistEntry],
+    })
+
+    render(
+      <AuthProvider>
+        <StudentDashboardPage />
+      </AuthProvider>,
+    )
+
+    const statusSection = await screen.findByRole('region', {
+      name: 'Registration status',
+    })
+    expect(within(statusSection).getByText('Rejected')).toBeVisible()
+    expect(
+      within(statusSection).getByText(
+        'Please choose the section that fits your study plan.',
+      ),
+    ).toBeVisible()
+    expect(within(statusSection).getByText(/Position #2 of 5/)).toBeVisible()
+    expect(
+      screen.getByRole('button', {
+        name: 'Leave waiting list for CSE 410',
+      }),
+    ).toBeEnabled()
+  })
+
+  it('joins a full section waitlist and can leave it from the dashboard', async () => {
+    const user = userEvent.setup()
+
+    vi.mocked(fetchCourses).mockResolvedValue([fullCourse])
+    vi.mocked(fetchRegistrationOverview)
+      .mockResolvedValueOnce({
+        registrations: [],
+        waitlist_entries: [],
+      })
+      .mockResolvedValueOnce({
+        registrations: [],
+        waitlist_entries: [waitlistEntry],
+      })
+      .mockResolvedValueOnce({
+        registrations: [],
+        waitlist_entries: [],
+      })
+
+    render(
+      <AuthProvider>
+        <StudentDashboardPage />
+      </AuthProvider>,
+    )
+
+    const joinButton = await screen.findByRole('button', {
+      name: 'Join waitlist',
+    })
+    await waitFor(() => expect(joinButton).toBeEnabled())
+    await user.click(joinButton)
+
+    expect(joinWaitlist).toHaveBeenCalledWith('student-token', 'cse-410-a')
+    expect(await screen.findByText('#2')).toBeVisible()
+
+    const leaveButton = screen.getByRole('button', {
+      name: 'Leave waiting list for CSE 410',
+    })
+    await user.click(leaveButton)
+
+    expect(leaveWaitlist).toHaveBeenCalledWith('student-token', 'cse-410-a')
+    await waitFor(() => {
+      expect(
+        screen.queryByRole('button', {
+          name: 'Leave waiting list for CSE 410',
+        }),
+      ).not.toBeInTheDocument()
+    })
   })
 
   it('shows missing prerequisite details returned by the backend', async () => {

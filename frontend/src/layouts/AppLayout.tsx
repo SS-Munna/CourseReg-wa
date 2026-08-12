@@ -24,9 +24,17 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         <div className="topbar-actions">
-          <a className="catalogue-link" href="#catalogue">
-            Browse courses
-          </a>
+          <nav className="topbar-nav" aria-label="Student dashboard sections">
+            <a className="catalogue-link" href="#registration-status">
+              Status
+            </a>
+            <a className="catalogue-link" href="#waitlist">
+              Waitlist
+            </a>
+            <a className="catalogue-link" href="#catalogue">
+              Browse courses
+            </a>
+          </nav>
 
           <button
             className="theme-toggle"

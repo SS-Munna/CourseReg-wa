@@ -5,7 +5,9 @@ import CourseDetailsModal from '../../components/CourseDetailsModal'
 import CourseFilters from '../../components/CourseFilters'
 import CourseStats from '../../components/CourseStats'
 import RegistrationReviewModal from '../../components/RegistrationReviewModal'
+import RegistrationStatusPanel from '../../components/RegistrationStatusPanel'
 import RegistrationWorkspace from '../../components/RegistrationWorkspace'
+import WaitlistPanel from '../../components/WaitlistPanel'
 import { useAuth } from '../../context/AuthContext'
 import { ApiRequestError } from '../../services/apiClient'
 import { fetchCourses } from '../../services/courseApi'
@@ -25,6 +27,7 @@ import {
 import type { Course, CourseFilters as CourseFilterValues } from '../../types/course'
 import type {
   CurrentRegistrationPeriod,
+  RegistrationOverview,
   RegistrationSummary,
 } from '../../types/dashboard'
 import type {
@@ -32,6 +35,7 @@ import type {
   DraftSelection,
   ScheduleConflictValidation,
 } from '../../types/selection'
+import { joinWaitlist, leaveWaitlist } from '../../services/waitlistApi'
 
 const EMPTY_SUMMARY: RegistrationSummary = {
   selected: 0,
@@ -40,6 +44,11 @@ const EMPTY_SUMMARY: RegistrationSummary = {
   rejected: 0,
   waitlisted: 0,
   selectedCredits: 0,
+}
+
+const EMPTY_OVERVIEW: RegistrationOverview = {
+  registrations: [],
+  waitlist_entries: [],
 }
 
 const summaryCards: Array<{
@@ -160,6 +169,8 @@ function StudentDashboardPage() {
 
   const [period, setPeriod] = useState<CurrentRegistrationPeriod | null>(null)
   const [summary, setSummary] = useState<RegistrationSummary>(EMPTY_SUMMARY)
+  const [registrationOverview, setRegistrationOverview] =
+    useState<RegistrationOverview>(EMPTY_OVERVIEW)
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [dashboardError, setDashboardError] = useState('')
   const [profileUnavailable, setProfileUnavailable] = useState(false)
@@ -169,6 +180,8 @@ function StudentDashboardPage() {
     useState<CreditLoadValidation | null>(null)
   const [selectionLoading, setSelectionLoading] = useState(true)
   const [mutationCourseId, setMutationCourseId] = useState<string | null>(null)
+  const [waitlistMutationCourseId, setWaitlistMutationCourseId] =
+    useState<string | null>(null)
   const [selectionFeedback, setSelectionFeedback] =
     useState<SelectionFeedback | null>(null)
   const [validatingReview, setValidatingReview] = useState(false)
@@ -215,6 +228,16 @@ function StudentDashboardPage() {
         ),
       ),
     [draftSelections],
+  )
+
+  const waitlistedCourseIds = useMemo(
+    () =>
+      new Set(
+        registrationOverview.waitlist_entries.map(
+          (entry) => entry.course.course_id,
+        ),
+      ),
+    [registrationOverview.waitlist_entries],
   )
 
   const loadCourses = useCallback(
@@ -278,11 +301,14 @@ function StudentDashboardPage() {
     }
 
     if (overviewResult.status === 'fulfilled') {
+      setRegistrationOverview(overviewResult.value)
       setSummary(summarizeRegistrations(overviewResult.value))
     } else if (isProfileError(overviewResult.reason)) {
+      setRegistrationOverview(EMPTY_OVERVIEW)
       setSummary(EMPTY_SUMMARY)
       profileMissing = true
     } else {
+      setRegistrationOverview(EMPTY_OVERVIEW)
       setSummary(EMPTY_SUMMARY)
       errors.push(
         overviewResult.reason instanceof Error
@@ -321,6 +347,7 @@ function StudentDashboardPage() {
 
     try {
       const overview = await fetchRegistrationOverview(token)
+      setRegistrationOverview(overview)
       setSummary(summarizeRegistrations(overview))
     } catch {
       // The mutation succeeded; the next full refresh will reconcile totals.
@@ -362,14 +389,50 @@ function StudentDashboardPage() {
         return `Only ${period.semester} sections can be selected now.`
       }
 
-      if (course.available_seats === 0) {
-        return 'Section full; waiting-list options are handled separately.'
-      }
-
       if (
         !selectedCourseIds.has(course.course_id) &&
         selectedCourseCodes.has(course.code.trim().toUpperCase())
       ) {
+        return `Another section of ${course.code} is already selected.`
+      }
+
+      return ''
+    },
+    [
+      period,
+      registrationUnavailableReason,
+      selectedCourseCodes,
+      selectedCourseIds,
+    ],
+  )
+
+  const waitlistLeaveUnavailableReason = useMemo(() => {
+    if (profileUnavailable) {
+      return 'Your academic student profile must be linked first.'
+    }
+
+    if (dashboardLoading) {
+      return 'Waiting-list status is still loading.'
+    }
+
+    return ''
+  }, [dashboardLoading, profileUnavailable])
+
+  const waitlistDisabledReason = useCallback(
+    (course: Course): string => {
+      if (registrationUnavailableReason) {
+        return registrationUnavailableReason
+      }
+
+      if (period?.semester && course.semester !== period.semester) {
+        return `Only ${period.semester} sections can be waitlisted now.`
+      }
+
+      if (selectedCourseIds.has(course.course_id)) {
+        return 'This section is already in your draft selection.'
+      }
+
+      if (selectedCourseCodes.has(course.code.trim().toUpperCase())) {
         return `Another section of ${course.code} is already selected.`
       }
 
@@ -492,6 +555,73 @@ function StudentDashboardPage() {
     }
   }
 
+  const handleJoinWaitlist = async (course: Course) => {
+    if (!token || mutationCourseId || waitlistMutationCourseId) {
+      return
+    }
+
+    const disabledReason = waitlistDisabledReason(course)
+
+    if (disabledReason) {
+      setSelectionFeedback({ tone: 'error', message: disabledReason })
+      return
+    }
+
+    setWaitlistMutationCourseId(course.course_id)
+    setSelectionFeedback(null)
+
+    try {
+      const entry = await joinWaitlist(token, course.course_id)
+      setSelectionFeedback({
+        tone: 'success',
+        message: `${course.code} joined the waiting list at position #${entry.queue_position}.`,
+      })
+      await loadDashboard()
+    } catch (requestError) {
+      setSelectionFeedback({
+        tone: 'error',
+        message: registrationErrorMessage(
+          requestError,
+          'This section could not be added to the waiting list.',
+        ),
+      })
+    } finally {
+      setWaitlistMutationCourseId(null)
+    }
+  }
+
+  const handleLeaveWaitlist = async (courseId: string) => {
+    if (!token || mutationCourseId || waitlistMutationCourseId) {
+      return
+    }
+
+    const entry = registrationOverview.waitlist_entries.find(
+      (item) => item.course.course_id === courseId,
+    )
+
+    setWaitlistMutationCourseId(courseId)
+    setSelectionFeedback(null)
+
+    try {
+      await leaveWaitlist(token, courseId)
+      setSelectionFeedback({
+        tone: 'success',
+        message: `${entry?.course.code || 'The course'} was removed from your waiting list.`,
+      })
+      await loadDashboard()
+    } catch (requestError) {
+      setSelectionFeedback({
+        tone: 'error',
+        message: registrationErrorMessage(
+          requestError,
+          'This waiting-list request could not be removed.',
+        ),
+      })
+    } finally {
+      setWaitlistMutationCourseId(null)
+    }
+  }
+
   const handleReviewSelection = async () => {
     if (
       !token ||
@@ -567,6 +697,10 @@ function StudentDashboardPage() {
   const selectedModalReason = selectedCourse
     ? courseSelectionDisabledReason(selectedCourse)
     : ''
+  const selectedModalWaitlistReason = selectedCourse
+    ? waitlistDisabledReason(selectedCourse)
+    : ''
+  const courseActionBusy = Boolean(mutationCourseId || waitlistMutationCourseId)
 
   return (
     <main className="app-main">
@@ -670,6 +804,20 @@ function StudentDashboardPage() {
         </div>
       )}
 
+      <RegistrationStatusPanel
+        overview={registrationOverview}
+        loading={dashboardLoading}
+      />
+
+      <WaitlistPanel
+        entries={registrationOverview.waitlist_entries}
+        loading={dashboardLoading}
+        mutationCourseId={waitlistMutationCourseId}
+        actionsEnabled={!waitlistLeaveUnavailableReason}
+        unavailableReason={waitlistLeaveUnavailableReason}
+        onLeave={(courseId) => void handleLeaveWaitlist(courseId)}
+      />
+
       <RegistrationWorkspace
         selections={draftSelections}
         creditValidation={creditValidation}
@@ -734,10 +882,15 @@ function StudentDashboardPage() {
                 course={course}
                 onViewDetails={setSelectedCourse}
                 onAddToSelection={(item) => void handleAddSelection(item)}
+                onJoinWaitlist={(item) => void handleJoinWaitlist(item)}
                 isSelected={selectedCourseIds.has(course.course_id)}
-                selectionBusy={Boolean(mutationCourseId)}
+                isWaitlisted={waitlistedCourseIds.has(course.course_id)}
+                selectionBusy={courseActionBusy}
                 selectionLoading={mutationCourseId === course.course_id}
                 selectionDisabledReason={courseSelectionDisabledReason(course)}
+                waitlistBusy={courseActionBusy}
+                waitlistLoading={waitlistMutationCourseId === course.course_id}
+                waitlistDisabledReason={waitlistDisabledReason(course)}
               />
             ))}
 
@@ -760,10 +913,15 @@ function StudentDashboardPage() {
           course={selectedCourse}
           onClose={closeCourseDetails}
           onAddToSelection={(course) => void handleAddSelection(course)}
+          onJoinWaitlist={(course) => void handleJoinWaitlist(course)}
           isSelected={selectedCourseIds.has(selectedCourse.course_id)}
-          selectionBusy={Boolean(mutationCourseId)}
+          isWaitlisted={waitlistedCourseIds.has(selectedCourse.course_id)}
+          selectionBusy={courseActionBusy}
           selectionLoading={mutationCourseId === selectedCourse.course_id}
           selectionDisabledReason={selectedModalReason}
+          waitlistBusy={courseActionBusy}
+          waitlistLoading={waitlistMutationCourseId === selectedCourse.course_id}
+          waitlistDisabledReason={selectedModalWaitlistReason}
         />
       )}
 

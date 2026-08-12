@@ -1983,3 +1983,326 @@ button:disabled {
     width: 100%;
   }
 }
+
+.topbar-nav {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.registration-status-section,
+.waitlist-section {
+  margin-top: 36px;
+  scroll-margin-top: 92px;
+}
+
+.status-record-list,
+.waitlist-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.status-record,
+.waitlist-card,
+.status-panel-loading,
+.status-panel-empty {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.status-record {
+  padding: 16px 18px;
+}
+
+.status-record-main {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.status-record-main > div:first-child {
+  min-width: 0;
+}
+
+.status-record-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 8px;
+}
+
+.registration-badge {
+  display: inline-flex;
+  min-height: 22px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.61rem;
+  font-weight: 820;
+}
+
+.registration-badge.status-pending,
+.registration-badge.status-waitlisted {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.registration-badge.status-approved {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.registration-badge.status-rejected {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.registration-badge.status-draft,
+.registration-badge.status-dropped {
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.status-record h3,
+.waitlist-course h3,
+.status-panel-empty h3 {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 0.9rem;
+}
+
+.status-record-main p,
+.waitlist-course p,
+.status-panel-empty p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.status-record-date {
+  display: flex;
+  flex: 0 0 170px;
+  align-items: flex-end;
+  flex-direction: column;
+  text-align: right;
+}
+
+.status-record-date span {
+  color: var(--subtle);
+  font-size: 0.61rem;
+  font-weight: 720;
+  text-transform: uppercase;
+}
+
+.status-record-date strong {
+  margin-top: 5px;
+  color: var(--text);
+  font-size: 0.68rem;
+}
+
+.advisor-comment {
+  margin-top: 13px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--primary);
+  border-radius: 8px;
+  background: var(--primary-soft);
+}
+
+.advisor-comment span {
+  color: var(--primary);
+  font-size: 0.62rem;
+  font-weight: 820;
+  text-transform: uppercase;
+}
+
+.advisor-comment p {
+  margin: 4px 0 0;
+  color: var(--text);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.advisor-comment.is-empty {
+  border-left-color: var(--border-strong);
+  background: var(--surface-soft);
+}
+
+.advisor-comment.is-empty span {
+  color: var(--muted);
+}
+
+.status-panel-loading,
+.status-panel-empty {
+  min-height: 112px;
+  padding: 22px;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.status-panel-loading {
+  display: grid;
+  place-items: center;
+  border-style: dashed;
+}
+
+.status-panel-empty {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+
+.status-panel-empty > span {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 12px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-weight: 850;
+}
+
+.waitlist-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.waitlist-card {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 16px;
+  padding: 17px;
+}
+
+.waitlist-position {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 112px;
+  border-radius: 12px;
+  flex-direction: column;
+  background: var(--warning-soft);
+  text-align: center;
+}
+
+.waitlist-position span,
+.waitlist-position small,
+.waitlist-course small {
+  color: var(--muted);
+  font-size: 0.62rem;
+}
+
+.waitlist-position strong {
+  margin: 4px 0;
+  color: var(--warning);
+  font-size: 1.55rem;
+  line-height: 1;
+}
+
+.waitlist-course {
+  min-width: 0;
+}
+
+.waitlist-course small {
+  display: block;
+  margin-top: 8px;
+}
+
+.waitlist-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px;
+  grid-column: 1 / -1;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.waitlist-actions button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--border));
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 780;
+}
+
+.waitlist-actions button:disabled {
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--subtle);
+}
+
+.waitlist-actions small {
+  max-width: 300px;
+  color: var(--subtle);
+  font-size: 0.6rem;
+  text-align: right;
+}
+
+.course-card-footer .waitlist-button {
+  background: var(--warning);
+}
+
+.course-card-footer .waitlist-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--warning) 82%, var(--text-strong));
+}
+
+.modal-selection-action button {
+  cursor: pointer;
+}
+
+@media (max-width: 900px) {
+  .topbar-nav a:not(:last-child) {
+    display: none;
+  }
+
+  .waitlist-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .registration-status-section,
+  .waitlist-section {
+    margin-top: 30px;
+  }
+
+  .status-record-main {
+    flex-direction: column;
+  }
+
+  .status-record-date {
+    flex: none;
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .waitlist-card {
+    grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .waitlist-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .waitlist-actions button {
+    width: 100%;
+  }
+
+  .waitlist-actions small {
+    max-width: none;
+    text-align: left;
+  }
+}
