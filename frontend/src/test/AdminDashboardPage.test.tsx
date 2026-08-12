@@ -65,6 +65,8 @@ const studentUser = {
 }
 
 beforeEach(() => {
+  vi.clearAllMocks()
+
   localStorage.setItem(
     'coursepilot_user',
     JSON.stringify({
@@ -266,6 +268,101 @@ describe('AdminDashboardPage', () => {
         },
       )
     })
+  })
+
+
+  it('blocks malformed staff email before provisioning', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AuthProvider>
+        <AdminDashboardPage />
+      </AuthProvider>,
+    )
+
+    await screen.findByRole('heading', { name: 'Create staff account' })
+    await user.type(screen.getByLabelText('Full name'), 'Dr. Nadia')
+    await user.type(screen.getByLabelText('Email'), 'invalid-email')
+    await user.type(
+      screen.getByLabelText('Temporary password'),
+      'TemporaryPass123!',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Create staff account' }),
+    )
+
+    expect(screen.getByText('Enter a valid staff email address.')).toBeVisible()
+    expect(createStaffAccount).not.toHaveBeenCalled()
+  })
+
+  it('rejects student trimester values outside the backend contract', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AuthProvider>
+        <AdminDashboardPage />
+      </AuthProvider>,
+    )
+
+    await screen.findByText('Samira Rahman')
+    await user.click(screen.getByRole('button', { name: 'Link profile' }))
+    await user.type(screen.getByLabelText('Student number'), 'STU-001')
+    await user.clear(screen.getByLabelText('Current trimester'))
+    await user.type(screen.getByLabelText('Current trimester'), '31')
+    await user.selectOptions(screen.getByLabelText('Program'), 'program-1')
+    await user.selectOptions(
+      screen.getByLabelText('Advisor'),
+      'advisor-profile-1',
+    )
+    await user.click(
+      screen.getByRole('button', { name: 'Link student profile' }),
+    )
+
+    expect(
+      screen.getByText(/trimester from 1 to 30/i),
+    ).toBeVisible()
+    expect(createStudentProfile).not.toHaveBeenCalled()
+  })
+
+  it('rejects invalid program credit ranges before the API call', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <AuthProvider>
+        <AdminDashboardPage />
+      </AuthProvider>,
+    )
+
+    await screen.findByRole('heading', { name: 'Departments & programs' })
+
+    const createProgramButton = screen.getByRole('button', {
+      name: 'Create program',
+    })
+    const programForm = createProgramButton.closest('form')
+
+    if (!programForm) {
+      throw new Error('Create program form was not found')
+    }
+
+    await user.selectOptions(
+      within(programForm).getByLabelText('Department'),
+      'department-1',
+    )
+    await user.type(within(programForm).getByLabelText('Program code'), 'BSC-CSE')
+    await user.type(
+      within(programForm).getByLabelText('Program name'),
+      'BSc in CSE',
+    )
+    await user.clear(within(programForm).getByLabelText('Minimum credits'))
+    await user.type(within(programForm).getByLabelText('Minimum credits'), '20')
+    await user.clear(within(programForm).getByLabelText('Maximum credits'))
+    await user.type(within(programForm).getByLabelText('Maximum credits'), '10')
+    await user.click(createProgramButton)
+
+    expect(
+      screen.getByText(/keep credits between 0 and 60/i),
+    ).toBeVisible()
+    expect(createProgram).not.toHaveBeenCalled()
   })
 
 })

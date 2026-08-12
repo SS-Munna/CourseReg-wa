@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { useAuth } from '../../context/AuthContext'
+import { isTrimmedLengthBetween, isValidEmail } from '../../utils/validation'
 
 import './LoginPage.css'
 
@@ -42,13 +43,18 @@ export default function LoginPage() {
       return
     }
 
-    if (isRegisterMode && !trimmedName) {
-      setError('Please enter your full name.')
+    if (!isValidEmail(trimmedEmail)) {
+      setError('Enter a valid email address.')
       return
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long.')
+    if (isRegisterMode && !isTrimmedLengthBetween(trimmedName, 2, 255)) {
+      setError('Full name must be between 2 and 255 characters.')
+      return
+    }
+
+    if (password.length < 6 || password.length > 128) {
+      setError('Password must be between 6 and 128 characters long.')
       return
     }
 
@@ -104,7 +110,7 @@ export default function LoginPage() {
           </p>
         </div>
 
-        <form className="auth-form" onSubmit={handleSubmit}>
+        <form className="auth-form" onSubmit={handleSubmit} noValidate>
           {isRegisterMode && (
             <label className="auth-field">
               <span>Full name</span>
@@ -113,6 +119,7 @@ export default function LoginPage() {
                 value={name}
                 placeholder="Enter your full name"
                 autoComplete="name"
+                maxLength={255}
                 onChange={(event) => setName(event.target.value)}
               />
             </label>
@@ -125,6 +132,7 @@ export default function LoginPage() {
               value={email}
               placeholder="you@example.com"
               autoComplete="email"
+              maxLength={254}
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
@@ -136,6 +144,7 @@ export default function LoginPage() {
               value={password}
               placeholder="At least 6 characters"
               autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
+              maxLength={128}
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
