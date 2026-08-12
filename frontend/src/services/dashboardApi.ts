@@ -5,57 +5,20 @@ import type {
   RegistrationOverviewResponse,
   RegistrationSummary,
 } from '../types/dashboard'
+import { ApiRequestError, requestJson } from './apiClient'
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
-
-type ApiErrorPayload = {
-  error?: {
-    code?: string
-    message?: string
-  }
-}
-
-export class ApiRequestError extends Error {
-  code: string
-  status: number
-
-  constructor(message: string, code: string, status: number) {
-    super(message)
-    this.name = 'ApiRequestError'
-    this.code = code
-    this.status = status
-  }
-}
-
-async function requestJson<ResponseData>(
-  path: string,
-  token: string,
-): Promise<ResponseData> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  })
-  const payload = (await response.json()) as ResponseData & ApiErrorPayload
-
-  if (!response.ok) {
-    throw new ApiRequestError(
-      payload.error?.message || 'Dashboard data could not be loaded.',
-      payload.error?.code || 'DASHBOARD_REQUEST_FAILED',
-      response.status,
-    )
-  }
-
-  return payload
-}
+export { ApiRequestError }
 
 export async function fetchCurrentRegistrationPeriod(
   token: string,
 ): Promise<CurrentRegistrationPeriod> {
   const response = await requestJson<CurrentRegistrationPeriodResponse>(
     '/api/registration-periods/current',
-    token,
+    {
+      token,
+      fallbackMessage: 'Registration-period status could not be loaded.',
+      fallbackCode: 'REGISTRATION_PERIOD_REQUEST_FAILED',
+    },
   )
   return response.data
 }
@@ -65,7 +28,11 @@ export async function fetchRegistrationOverview(
 ): Promise<RegistrationOverview> {
   const response = await requestJson<RegistrationOverviewResponse>(
     '/api/registrations',
-    token,
+    {
+      token,
+      fallbackMessage: 'Registration summary could not be loaded.',
+      fallbackCode: 'REGISTRATION_OVERVIEW_REQUEST_FAILED',
+    },
   )
   return response.data
 }

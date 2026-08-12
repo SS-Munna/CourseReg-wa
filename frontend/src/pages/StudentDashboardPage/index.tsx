@@ -4,19 +4,34 @@ import CourseCard from '../../components/CourseCard'
 import CourseDetailsModal from '../../components/CourseDetailsModal'
 import CourseFilters from '../../components/CourseFilters'
 import CourseStats from '../../components/CourseStats'
+import RegistrationReviewModal from '../../components/RegistrationReviewModal'
+import RegistrationWorkspace from '../../components/RegistrationWorkspace'
 import { useAuth } from '../../context/AuthContext'
+import { ApiRequestError } from '../../services/apiClient'
+import { fetchCourses } from '../../services/courseApi'
 import {
-  ApiRequestError,
   fetchCurrentRegistrationPeriod,
   fetchRegistrationOverview,
   summarizeRegistrations,
 } from '../../services/dashboardApi'
-import { fetchCourses } from '../../services/courseApi'
+import {
+  addDraftSelection,
+  fetchDraftSelections,
+  removeDraftSelection,
+  submitRegistration,
+  validateFinalCreditLoad,
+  validateFinalSchedule,
+} from '../../services/selectionApi'
 import type { Course, CourseFilters as CourseFilterValues } from '../../types/course'
 import type {
   CurrentRegistrationPeriod,
   RegistrationSummary,
 } from '../../types/dashboard'
+import type {
+  CreditLoadValidation,
+  DraftSelection,
+  ScheduleConflictValidation,
+} from '../../types/selection'
 
 const EMPTY_SUMMARY: RegistrationSummary = {
   selected: 0,
@@ -39,6 +54,16 @@ const summaryCards: Array<{
   { key: 'waitlisted', label: 'Waitlisted', hint: 'Awaiting a seat' },
   { key: 'selectedCredits', label: 'Selected credits', hint: 'Active course load' },
 ]
+
+type SelectionFeedback = {
+  tone: 'success' | 'error'
+  message: string
+}
+
+type ReviewValidation = {
+  credit: CreditLoadValidation
+  schedule: ScheduleConflictValidation
+}
 
 function formatDateTime(value: string | null): string {
   if (!value) {
@@ -69,6 +94,61 @@ function statusLabel(period: CurrentRegistrationPeriod | null): string {
   return labels[period.effective_status]
 }
 
+function isProfileError(error: unknown): boolean {
+  return (
+    error instanceof ApiRequestError &&
+    error.code === 'STUDENT_PROFILE_NOT_FOUND'
+  )
+}
+
+function prerequisiteDetail(details: unknown): string {
+  if (!details || typeof details !== 'object') {
+    return ''
+  }
+
+  const missing = (details as { missing_prerequisites?: unknown })
+    .missing_prerequisites
+
+  if (!Array.isArray(missing)) {
+    return ''
+  }
+
+  const labels = missing.flatMap((item) => {
+    if (!item || typeof item !== 'object') {
+      return []
+    }
+
+    const requirement = item as {
+      code?: unknown
+      minimum_grade?: unknown
+    }
+
+    if (typeof requirement.code !== 'string') {
+      return []
+    }
+
+    return [
+      typeof requirement.minimum_grade === 'string'
+        ? `${requirement.code} (minimum ${requirement.minimum_grade})`
+        : requirement.code,
+    ]
+  })
+
+  return labels.length > 0 ? ` Missing: ${labels.join(', ')}.` : ''
+}
+
+function registrationErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiRequestError) {
+    if (error.code === 'PREREQUISITES_NOT_MET') {
+      return `${error.message}${prerequisiteDetail(error.details)}`
+    }
+
+    return error.message
+  }
+
+  return error instanceof Error ? error.message : fallback
+}
+
 function StudentDashboardPage() {
   const { token, user } = useAuth()
   const [courses, setCourses] = useState<Course[]>([])
@@ -83,6 +163,20 @@ function StudentDashboardPage() {
   const [dashboardLoading, setDashboardLoading] = useState(true)
   const [dashboardError, setDashboardError] = useState('')
   const [profileUnavailable, setProfileUnavailable] = useState(false)
+
+  const [draftSelections, setDraftSelections] = useState<DraftSelection[]>([])
+  const [creditValidation, setCreditValidation] =
+    useState<CreditLoadValidation | null>(null)
+  const [selectionLoading, setSelectionLoading] = useState(true)
+  const [mutationCourseId, setMutationCourseId] = useState<string | null>(null)
+  const [selectionFeedback, setSelectionFeedback] =
+    useState<SelectionFeedback | null>(null)
+  const [validatingReview, setValidatingReview] = useState(false)
+  const [reviewValidation, setReviewValidation] =
+    useState<ReviewValidation | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submissionError, setSubmissionError] = useState('')
 
   const departments = useMemo(
     () =>
@@ -108,6 +202,19 @@ function StudentDashboardPage() {
         ),
       ).sort(),
     [catalogueOptions],
+  )
+  const selectedCourseIds = useMemo(
+    () => new Set(draftSelections.map((selection) => selection.course.course_id)),
+    [draftSelections],
+  )
+  const selectedCourseCodes = useMemo(
+    () =>
+      new Set(
+        draftSelections.map((selection) =>
+          selection.course.code.trim().toUpperCase(),
+        ),
+      ),
+    [draftSelections],
   )
 
   const loadCourses = useCallback(
@@ -141,18 +248,23 @@ function StudentDashboardPage() {
 
   const loadDashboard = useCallback(async () => {
     if (!token) {
+      setDashboardLoading(false)
+      setSelectionLoading(false)
       return
     }
 
     setDashboardLoading(true)
+    setSelectionLoading(true)
     setDashboardError('')
-    setProfileUnavailable(false)
 
-    const [periodResult, overviewResult] = await Promise.allSettled([
-      fetchCurrentRegistrationPeriod(token),
-      fetchRegistrationOverview(token),
-    ])
+    const [periodResult, overviewResult, selectionResult] =
+      await Promise.allSettled([
+        fetchCurrentRegistrationPeriod(token),
+        fetchRegistrationOverview(token),
+        fetchDraftSelections(token),
+      ])
     const errors: string[] = []
+    let profileMissing = false
 
     if (periodResult.status === 'fulfilled') {
       setPeriod(periodResult.value)
@@ -167,12 +279,9 @@ function StudentDashboardPage() {
 
     if (overviewResult.status === 'fulfilled') {
       setSummary(summarizeRegistrations(overviewResult.value))
-    } else if (
-      overviewResult.reason instanceof ApiRequestError &&
-      overviewResult.reason.code === 'STUDENT_PROFILE_NOT_FOUND'
-    ) {
+    } else if (isProfileError(overviewResult.reason)) {
       setSummary(EMPTY_SUMMARY)
-      setProfileUnavailable(true)
+      profileMissing = true
     } else {
       setSummary(EMPTY_SUMMARY)
       errors.push(
@@ -182,14 +291,111 @@ function StudentDashboardPage() {
       )
     }
 
-    setDashboardError(errors.join(' '))
+    if (selectionResult.status === 'fulfilled') {
+      setDraftSelections(selectionResult.value.selections)
+      setCreditValidation(selectionResult.value.creditValidation)
+    } else if (isProfileError(selectionResult.reason)) {
+      setDraftSelections([])
+      setCreditValidation(null)
+      profileMissing = true
+    } else {
+      setDraftSelections([])
+      setCreditValidation(null)
+      errors.push(
+        selectionResult.reason instanceof Error
+          ? selectionResult.reason.message
+          : 'Draft course selections could not be loaded.',
+      )
+    }
+
+    setProfileUnavailable(profileMissing)
+    setDashboardError(Array.from(new Set(errors)).join(' '))
     setDashboardLoading(false)
+    setSelectionLoading(false)
+  }, [token])
+
+  const refreshRegistrationSummary = useCallback(async () => {
+    if (!token) {
+      return
+    }
+
+    try {
+      const overview = await fetchRegistrationOverview(token)
+      setSummary(summarizeRegistrations(overview))
+    } catch {
+      // The mutation succeeded; the next full refresh will reconcile totals.
+    }
   }, [token])
 
   useEffect(() => {
     void loadCourses({ courseType: 'all' }, true)
     void loadDashboard()
   }, [loadCourses, loadDashboard])
+
+  const registrationUnavailableReason = useMemo(() => {
+    if (profileUnavailable) {
+      return 'Your academic student profile must be linked first.'
+    }
+
+    if (dashboardLoading) {
+      return 'Registration status is still loading.'
+    }
+
+    if (!period) {
+      return 'Registration status is currently unavailable.'
+    }
+
+    if (!period.registration_enabled) {
+      return period.message
+    }
+
+    return ''
+  }, [dashboardLoading, period, profileUnavailable])
+
+  const courseSelectionDisabledReason = useCallback(
+    (course: Course): string => {
+      if (registrationUnavailableReason) {
+        return registrationUnavailableReason
+      }
+
+      if (period?.semester && course.semester !== period.semester) {
+        return `Only ${period.semester} sections can be selected now.`
+      }
+
+      if (course.available_seats === 0) {
+        return 'Section full; waiting-list options are handled separately.'
+      }
+
+      if (
+        !selectedCourseIds.has(course.course_id) &&
+        selectedCourseCodes.has(course.code.trim().toUpperCase())
+      ) {
+        return `Another section of ${course.code} is already selected.`
+      }
+
+      return ''
+    },
+    [
+      period,
+      registrationUnavailableReason,
+      selectedCourseCodes,
+      selectedCourseIds,
+    ],
+  )
+
+  const reviewUnavailableReason = useMemo(() => {
+    if (!period?.semester) {
+      return ''
+    }
+
+    const offTermSelection = draftSelections.find(
+      (selection) => selection.course.semester !== period.semester,
+    )
+
+    return offTermSelection
+      ? `Remove ${offTermSelection.course.code}; it is not offered in the active ${period.semester} period.`
+      : ''
+  }, [draftSelections, period])
 
   const clearFilters = () => {
     const emptyFilters: CourseFilterValues = { courseType: 'all' }
@@ -198,6 +404,7 @@ function StudentDashboardPage() {
   }
 
   const refreshDashboard = () => {
+    setSelectionFeedback(null)
     void Promise.all([loadDashboard(), loadCourses(filters)])
   }
 
@@ -205,8 +412,161 @@ function StudentDashboardPage() {
     setSelectedCourse(null)
   }, [])
 
+  const handleAddSelection = async (course: Course) => {
+    if (!token || mutationCourseId) {
+      return
+    }
+
+    const disabledReason = courseSelectionDisabledReason(course)
+
+    if (disabledReason) {
+      setSelectionFeedback({ tone: 'error', message: disabledReason })
+      return
+    }
+
+    setMutationCourseId(course.course_id)
+    setSelectionFeedback(null)
+
+    try {
+      const result = await addDraftSelection(token, course.course_id)
+      const addedSelection = result.selection
+
+      setDraftSelections((current) =>
+        [...current, addedSelection].sort((left, right) =>
+          `${left.course.code}-${left.course.section}`.localeCompare(
+            `${right.course.code}-${right.course.section}`,
+          ),
+        ),
+      )
+      setCreditValidation(result.creditValidation)
+      setSelectionFeedback({
+        tone: 'success',
+        message: `${course.code} section ${course.section || 'N/A'} was added as a draft.`,
+      })
+      void refreshRegistrationSummary()
+    } catch (requestError) {
+      setSelectionFeedback({
+        tone: 'error',
+        message: registrationErrorMessage(
+          requestError,
+          'This section could not be added to your selection.',
+        ),
+      })
+    } finally {
+      setMutationCourseId(null)
+    }
+  }
+
+  const handleRemoveSelection = async (courseId: string) => {
+    if (!token || mutationCourseId || registrationUnavailableReason) {
+      return
+    }
+
+    const selection = draftSelections.find(
+      (item) => item.course.course_id === courseId,
+    )
+    setMutationCourseId(courseId)
+    setSelectionFeedback(null)
+
+    try {
+      const validation = await removeDraftSelection(token, courseId)
+      setDraftSelections((current) =>
+        current.filter((item) => item.course.course_id !== courseId),
+      )
+      setCreditValidation(validation)
+      setSelectionFeedback({
+        tone: 'success',
+        message: `${selection?.course.code || 'The course'} was removed from your draft selection.`,
+      })
+      void refreshRegistrationSummary()
+    } catch (requestError) {
+      setSelectionFeedback({
+        tone: 'error',
+        message: registrationErrorMessage(
+          requestError,
+          'This draft selection could not be removed.',
+        ),
+      })
+    } finally {
+      setMutationCourseId(null)
+    }
+  }
+
+  const handleReviewSelection = async () => {
+    if (
+      !token ||
+      validatingReview ||
+      registrationUnavailableReason ||
+      reviewUnavailableReason
+    ) {
+      return
+    }
+
+    setValidatingReview(true)
+    setSelectionFeedback(null)
+
+    try {
+      const [credit, schedule] = await Promise.all([
+        validateFinalCreditLoad(token),
+        validateFinalSchedule(token),
+      ])
+      setReviewValidation({ credit, schedule })
+      setSubmissionError('')
+      setReviewOpen(true)
+    } catch (requestError) {
+      setSelectionFeedback({
+        tone: 'error',
+        message: registrationErrorMessage(
+          requestError,
+          'The selection could not be validated for final review.',
+        ),
+      })
+    } finally {
+      setValidatingReview(false)
+    }
+  }
+
+  const closeRegistrationReview = useCallback(() => {
+    if (!submitting) {
+      setReviewOpen(false)
+      setSubmissionError('')
+    }
+  }, [submitting])
+
+  const handleSubmitRegistration = async () => {
+    if (!token || submitting) {
+      return
+    }
+
+    setSubmitting(true)
+    setSubmissionError('')
+
+    try {
+      const submission = await submitRegistration(token)
+      setReviewOpen(false)
+      setReviewValidation(null)
+      setSelectionFeedback({
+        tone: 'success',
+        message: `${submission.submitted_count} course${submission.submitted_count === 1 ? '' : 's'} submitted for advisor review.`,
+      })
+      await Promise.all([loadDashboard(), loadCourses(filters)])
+    } catch (requestError) {
+      setSubmissionError(
+        registrationErrorMessage(
+          requestError,
+          'Your registration could not be submitted.',
+        ),
+      )
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
   const firstName = user?.name.trim().split(/\s+/)[0] || 'Student'
   const periodClass = period?.effective_status || 'unavailable'
+  const selectedModalReason = selectedCourse
+    ? courseSelectionDisabledReason(selectedCourse)
+    : ''
 
   return (
     <main className="app-main">
@@ -215,8 +575,8 @@ function StudentDashboardPage() {
           <span className="page-eyebrow">Student dashboard</span>
           <h1>Welcome back, {firstName}</h1>
           <p>
-            Track your registration progress and explore every available course
-            section from one place.
+            Track your registration progress, build a valid course selection,
+            and submit it for advisor review from one place.
           </p>
         </div>
         <button className="refresh-button" type="button" onClick={refreshDashboard}>
@@ -268,8 +628,8 @@ function StudentDashboardPage() {
         <div className="inline-alert info" role="status">
           <strong>Your account is ready; the academic profile is still being set up.</strong>
           <span>
-            Registration totals will appear after an administrator links your student
-            profile. You can browse the full catalogue now.
+            Registration actions will unlock after an administrator links your
+            student profile. You can browse the full catalogue now.
           </span>
         </div>
       )}
@@ -295,6 +655,33 @@ function StudentDashboardPage() {
           ))}
         </div>
       </section>
+
+      {selectionFeedback && (
+        <div
+          className={`inline-alert ${selectionFeedback.tone}`}
+          role={selectionFeedback.tone === 'error' ? 'alert' : 'status'}
+        >
+          <strong>
+            {selectionFeedback.tone === 'success'
+              ? 'Registration updated.'
+              : 'Registration needs attention.'}
+          </strong>
+          <span>{selectionFeedback.message}</span>
+        </div>
+      )}
+
+      <RegistrationWorkspace
+        selections={draftSelections}
+        creditValidation={creditValidation}
+        loading={selectionLoading}
+        mutationCourseId={mutationCourseId}
+        validatingReview={validatingReview}
+        actionsEnabled={!registrationUnavailableReason}
+        unavailableReason={registrationUnavailableReason}
+        reviewUnavailableReason={reviewUnavailableReason}
+        onRemove={(courseId) => void handleRemoveSelection(courseId)}
+        onReview={() => void handleReviewSelection()}
+      />
 
       <section className="catalogue-section" id="catalogue" aria-labelledby="catalogue-title">
         <div className="section-heading catalogue-heading">
@@ -346,6 +733,11 @@ function StudentDashboardPage() {
                 key={course.course_id}
                 course={course}
                 onViewDetails={setSelectedCourse}
+                onAddToSelection={(item) => void handleAddSelection(item)}
+                isSelected={selectedCourseIds.has(course.course_id)}
+                selectionBusy={Boolean(mutationCourseId)}
+                selectionLoading={mutationCourseId === course.course_id}
+                selectionDisabledReason={courseSelectionDisabledReason(course)}
               />
             ))}
 
@@ -364,7 +756,27 @@ function StudentDashboardPage() {
       </section>
 
       {selectedCourse && (
-        <CourseDetailsModal course={selectedCourse} onClose={closeCourseDetails} />
+        <CourseDetailsModal
+          course={selectedCourse}
+          onClose={closeCourseDetails}
+          onAddToSelection={(course) => void handleAddSelection(course)}
+          isSelected={selectedCourseIds.has(selectedCourse.course_id)}
+          selectionBusy={Boolean(mutationCourseId)}
+          selectionLoading={mutationCourseId === selectedCourse.course_id}
+          selectionDisabledReason={selectedModalReason}
+        />
+      )}
+
+      {reviewOpen && reviewValidation && (
+        <RegistrationReviewModal
+          selections={draftSelections}
+          creditValidation={reviewValidation.credit}
+          scheduleValidation={reviewValidation.schedule}
+          submitting={submitting}
+          error={submissionError}
+          onClose={closeRegistrationReview}
+          onSubmit={() => void handleSubmitRegistration()}
+        />
       )}
     </main>
   )

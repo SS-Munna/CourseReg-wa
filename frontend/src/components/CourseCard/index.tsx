@@ -3,9 +3,22 @@ import type { Course } from '../../types/course'
 type CourseCardProps = {
   course: Course
   onViewDetails: (course: Course) => void
+  onAddToSelection: (course: Course) => void
+  isSelected: boolean
+  selectionBusy: boolean
+  selectionLoading: boolean
+  selectionDisabledReason: string
 }
 
-function CourseCard({ course, onViewDetails }: CourseCardProps) {
+function CourseCard({
+  course,
+  onViewDetails,
+  onAddToSelection,
+  isSelected,
+  selectionBusy,
+  selectionLoading,
+  selectionDisabledReason,
+}: CourseCardProps) {
   const seatPercentage = Math.max(
     0,
     Math.min(100, (course.available_seats / course.capacity) * 100),
@@ -70,11 +83,39 @@ function CourseCard({ course, onViewDetails }: CourseCardProps) {
       </div>
 
       <div className="course-card-footer">
-        <span>{course.semester}</span>
-        <button type="button" onClick={() => onViewDetails(course)}>
-          View section details
+        <div>
+          <span>{course.semester}</span>
+          <button
+            className="details-button"
+            type="button"
+            onClick={() => onViewDetails(course)}
+          >
+            View section details
+          </button>
+        </div>
+        <button
+          className="selection-button"
+          type="button"
+          onClick={() => onAddToSelection(course)}
+          disabled={
+            isSelected || selectionBusy || Boolean(selectionDisabledReason)
+          }
+          title={
+            selectionDisabledReason ||
+            (selectionBusy ? 'Another selection update is in progress.' : undefined)
+          }
+        >
+          {isSelected
+            ? 'Selected'
+            : selectionLoading
+              ? 'Adding…'
+              : 'Add to selection'}
         </button>
       </div>
+
+      {!isSelected && selectionDisabledReason && (
+        <small className="selection-help">{selectionDisabledReason}</small>
+      )}
     </article>
   )
 }
