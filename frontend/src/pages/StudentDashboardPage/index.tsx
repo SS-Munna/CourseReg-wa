@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 
+import ApprovedSchedule from '../../components/ApprovedSchedule'
 import CourseCard from '../../components/CourseCard'
 import CourseDetailsModal from '../../components/CourseDetailsModal'
 import CourseFilters from '../../components/CourseFilters'
@@ -807,6 +808,12 @@ function StudentDashboardPage() {
       <RegistrationStatusPanel
         overview={registrationOverview}
         loading={dashboardLoading}
+      />
+
+      <ApprovedSchedule
+        registrations={registrationOverview.registrations}
+        loading={dashboardLoading}
+        activeSemester={period?.semester ?? null}
       />
 
       <WaitlistPanel

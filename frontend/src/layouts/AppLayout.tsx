@@ -28,6 +28,9 @@ export default function AppLayout({ children }: AppLayoutProps) {
             <a className="catalogue-link" href="#registration-status">
               Status
             </a>
+            <a className="catalogue-link" href="#timetable">
+              Timetable
+            </a>
             <a className="catalogue-link" href="#waitlist">
               Waitlist
             </a>
