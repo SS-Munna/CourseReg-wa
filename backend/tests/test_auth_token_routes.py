@@ -161,5 +161,39 @@ class AuthTokenRoutesTestCase(unittest.TestCase):
         )
 
 
+    def test_inactive_account_cannot_log_in(self):
+        user = SimpleNamespace(
+            id=uuid4(),
+            full_name="Pending Advisor",
+            email="pending@example.com",
+            role="advisor",
+            account_status="pending",
+        )
+
+        with patch(
+            "app.api.routes.auth.verify_user_credentials",
+            return_value=user,
+        ):
+            response = self.client.post(
+                "/api/auth/login",
+                json={
+                    "email": "pending@example.com",
+                    "password": "SecurePass123!",
+                },
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["error"],
+            {
+                "code": "ACCOUNT_NOT_ACTIVE",
+                "message": (
+                    "This account is not active. Contact an administrator "
+                    "if you believe access should be restored."
+                ),
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

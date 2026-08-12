@@ -1,11 +1,17 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://127.0.0.1:8000'
 
+export type AuthRole =
+  | 'student'
+  | 'advisor'
+  | 'department-admin'
+  | 'system-admin'
+
 export type AuthUser = {
   id: string
   name: string
   email: string
-  role: string
+  role: AuthRole
 }
 
 export type AuthResponse = {
@@ -56,7 +62,7 @@ export async function registerStudent(
   return handleAuthResponse(response)
 }
 
-export async function loginStudent(
+export async function login(
   payload: LoginPayload,
 ): Promise<AuthResponse> {
   const response = await fetch(`${API_BASE_URL}/api/auth/login`, {

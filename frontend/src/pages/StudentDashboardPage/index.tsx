@@ -714,10 +714,15 @@ function StudentDashboardPage() {
             and submit it for advisor review from one place.
           </p>
         </div>
-        <button className="refresh-button" type="button" onClick={refreshDashboard}>
-          <span aria-hidden="true">↻</span>
-          Refresh dashboard
-        </button>
+        <div className="dashboard-hero-actions">
+          <a className="primary-dashboard-cta" href="#catalogue">
+            Browse &amp; add courses
+          </a>
+          <button className="refresh-button" type="button" onClick={refreshDashboard}>
+            <span aria-hidden="true">↻</span>
+            Refresh dashboard
+          </button>
+        </div>
       </section>
 
       <section className={`period-card period-${periodClass}`}>

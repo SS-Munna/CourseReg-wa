@@ -2604,3 +2604,579 @@ button:disabled {
     flex-direction: column;
   }
 }
+
+.dashboard-hero-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.primary-dashboard-cta {
+  display: inline-flex;
+  min-height: 42px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 16px;
+  border-radius: 10px;
+  background: var(--primary);
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+.primary-dashboard-cta:hover {
+  background: color-mix(in srgb, var(--primary) 88%, #000000);
+  color: #ffffff;
+}
+
+.advisor-main {
+  width: min(1320px, calc(100% - 48px));
+}
+
+.advisor-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.advisor-summary-card {
+  display: grid;
+  gap: 4px;
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.advisor-summary-card > span {
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 760;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.advisor-summary-card > strong {
+  margin-top: 4px;
+  color: var(--text-strong);
+  font-size: 1.35rem;
+}
+
+.advisor-summary-card > small {
+  color: var(--subtle);
+  font-size: 0.7rem;
+}
+
+.advisor-workspace {
+  display: grid;
+  grid-template-columns: minmax(340px, 0.9fr) minmax(0, 1.45fr);
+  gap: 18px;
+  margin-top: 28px;
+  align-items: start;
+}
+
+.advisor-queue-panel,
+.advisor-review-panel,
+.advisor-detail-empty {
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.advisor-queue-panel {
+  min-width: 0;
+  padding: 18px;
+}
+
+.advisor-queue-heading {
+  margin-bottom: 14px;
+}
+
+.advisor-filter-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+
+.advisor-filter-tabs button,
+.advisor-pagination button,
+.advisor-review-button,
+.advisor-approve-button,
+.advisor-reject-button {
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+
+.advisor-filter-tabs button {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 760;
+}
+
+.advisor-filter-tabs button.active {
+  border-color: color-mix(in srgb, var(--primary) 32%, var(--border));
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.advisor-request-list {
+  display: grid;
+  gap: 10px;
+}
+
+.advisor-request-card {
+  padding: 15px;
+  border: 1px solid var(--border);
+  border-radius: 13px;
+  background: var(--surface-soft);
+}
+
+.advisor-request-card.selected {
+  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 10%, transparent);
+}
+
+.advisor-request-card-top,
+.advisor-course-review-main,
+.advisor-review-heading,
+.advisor-decision-actions,
+.advisor-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.advisor-student-number {
+  color: var(--primary);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+}
+
+.advisor-request-card h3,
+.advisor-course-review h3,
+.advisor-review-heading h2,
+.advisor-queue-empty h3,
+.advisor-detail-empty h3,
+.role-workspace-card h1 {
+  margin: 0;
+  color: var(--text-strong);
+}
+
+.advisor-request-card h3 {
+  margin-top: 4px;
+  font-size: 0.94rem;
+}
+
+.advisor-request-card-top p,
+.advisor-review-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.advisor-request-meta {
+  display: grid;
+  grid-template-columns: 0.55fr 0.55fr 1.5fr;
+  gap: 8px;
+  margin-top: 13px;
+}
+
+.advisor-request-meta > span {
+  display: grid;
+  gap: 2px;
+}
+
+.advisor-request-meta strong {
+  color: var(--text);
+  font-size: 0.72rem;
+}
+
+.advisor-request-meta small {
+  color: var(--subtle);
+  font-size: 0.6rem;
+  text-transform: uppercase;
+}
+
+.advisor-request-courses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 11px;
+}
+
+.advisor-request-courses span {
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 720;
+}
+
+.advisor-review-button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.advisor-review-button:hover {
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface));
+}
+
+.advisor-queue-empty,
+.advisor-detail-empty {
+  display: flex;
+  min-height: 170px;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.advisor-queue-empty {
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.advisor-queue-empty > span,
+.advisor-detail-empty > span {
+  color: var(--primary);
+  font-size: 1.5rem;
+}
+
+.advisor-queue-empty h3,
+.advisor-detail-empty h3 {
+  font-size: 0.88rem;
+}
+
+.advisor-queue-empty p,
+.advisor-detail-empty p {
+  max-width: 420px;
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+
+.advisor-pagination {
+  margin-top: 14px;
+}
+
+.advisor-pagination button {
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 760;
+}
+
+.advisor-pagination button:disabled {
+  color: var(--subtle);
+}
+
+.advisor-pagination span {
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.advisor-detail-column {
+  min-width: 0;
+}
+
+.advisor-review-panel {
+  overflow: hidden;
+}
+
+.advisor-review-heading {
+  align-items: flex-start;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.advisor-review-heading h2 {
+  font-size: 1.25rem;
+}
+
+.advisor-validation-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 16px 20px 0;
+}
+
+.advisor-validation-card {
+  display: grid;
+  gap: 4px;
+  padding: 13px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+
+.advisor-validation-card.success {
+  border-color: color-mix(in srgb, var(--success) 28%, var(--border));
+  background: color-mix(in srgb, var(--success-soft) 65%, var(--surface));
+}
+
+.advisor-validation-card.warning {
+  border-color: color-mix(in srgb, var(--warning) 32%, var(--border));
+  background: color-mix(in srgb, var(--warning-soft) 68%, var(--surface));
+}
+
+.advisor-validation-card span {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 760;
+  text-transform: uppercase;
+}
+
+.advisor-validation-card strong {
+  color: var(--text-strong);
+  font-size: 0.82rem;
+}
+
+.advisor-validation-card small {
+  color: var(--muted);
+  font-size: 0.64rem;
+  line-height: 1.4;
+}
+
+.advisor-course-review-list {
+  display: grid;
+  gap: 10px;
+  padding: 16px 20px;
+}
+
+.advisor-course-review {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.advisor-course-review h3 {
+  margin-top: 6px;
+  font-size: 0.9rem;
+}
+
+.advisor-course-review-main p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.advisor-prerequisite-state {
+  flex: 0 0 auto;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 780;
+}
+
+.advisor-prerequisite-state.success {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.advisor-prerequisite-state.warning {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+.advisor-course-review-meta {
+  display: grid;
+  grid-template-columns: 0.55fr 1.45fr;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--border);
+}
+
+.advisor-course-review-meta span {
+  display: grid;
+  gap: 3px;
+  color: var(--subtle);
+  font-size: 0.62rem;
+}
+
+.advisor-course-review-meta strong {
+  color: var(--text);
+  font-size: 0.68rem;
+}
+
+.advisor-prerequisite-warning {
+  margin: 10px 0 0;
+  color: var(--warning);
+  font-size: 0.67rem;
+  font-weight: 700;
+}
+
+.advisor-decision-box,
+.advisor-reviewed-box {
+  margin: 0 20px 20px;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.advisor-decision-box label {
+  display: grid;
+  gap: 7px;
+}
+
+.advisor-decision-box label > span,
+.advisor-reviewed-box > span {
+  color: var(--text-strong);
+  font-size: 0.72rem;
+  font-weight: 780;
+}
+
+.advisor-decision-box textarea {
+  min-height: 92px;
+  resize: vertical;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.advisor-decision-box textarea:focus {
+  border-color: var(--primary);
+  outline: 0;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.advisor-decision-error {
+  margin: 8px 0 0;
+  color: var(--danger);
+  font-size: 0.68rem;
+  font-weight: 720;
+}
+
+.advisor-decision-actions {
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.advisor-decision-actions button {
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 0.7rem;
+  font-weight: 800;
+}
+
+.advisor-reject-button {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.advisor-approve-button {
+  background: var(--success);
+  color: #ffffff;
+}
+
+.advisor-reviewed-box p {
+  margin: 7px 0 0;
+  color: var(--text);
+  font-size: 0.74rem;
+  line-height: 1.5;
+}
+
+.advisor-reviewed-box small {
+  display: block;
+  margin-top: 7px;
+  color: var(--subtle);
+  font-size: 0.64rem;
+}
+
+.role-workspace-card {
+  max-width: 720px;
+  margin: 50px auto 0;
+  padding: 28px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.role-workspace-card h1 {
+  font-size: 1.75rem;
+}
+
+.role-workspace-card > p {
+  margin: 10px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+@media (max-width: 1050px) {
+  .advisor-workspace {
+    grid-template-columns: 1fr;
+  }
+
+  .advisor-detail-column {
+    order: -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .dashboard-hero-actions {
+    width: 100%;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .primary-dashboard-cta,
+  .dashboard-hero-actions .refresh-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .advisor-summary-grid,
+  .advisor-validation-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .advisor-request-meta,
+  .advisor-course-review-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .advisor-request-card-top,
+  .advisor-course-review-main,
+  .advisor-review-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

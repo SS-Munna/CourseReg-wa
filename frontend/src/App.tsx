@@ -3,21 +3,29 @@ import './App.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import AppLayout from './layouts/AppLayout'
+import AdvisorDashboardPage from './pages/AdvisorDashboardPage'
 import LoginPage from './pages/LoginPage'
+import RoleWorkspacePage from './pages/RoleWorkspacePage'
 import StudentDashboardPage from './pages/StudentDashboardPage'
 
 function AppContent() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, user } = useAuth()
 
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return <LoginPage />
   }
 
-  return (
-    <AppLayout>
-      <StudentDashboardPage />
-    </AppLayout>
-  )
+  let workspace
+
+  if (user.role === 'student') {
+    workspace = <StudentDashboardPage />
+  } else if (user.role === 'advisor') {
+    workspace = <AdvisorDashboardPage />
+  } else {
+    workspace = <RoleWorkspacePage />
+  }
+
+  return <AppLayout>{workspace}</AppLayout>
 }
 
 function App() {

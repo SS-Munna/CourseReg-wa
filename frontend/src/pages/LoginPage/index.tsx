@@ -86,17 +86,21 @@ export default function LoginPage() {
           <span className="auth-logo">C</span>
           <div>
             <h1>CoursePilot</h1>
-            <p>Student Registration Portal</p>
+            <p>Academic Registration Portal</p>
           </div>
         </div>
 
         <div className="auth-heading">
-          <span className="auth-eyebrow">Student Access</span>
-          <h2>{isRegisterMode ? 'Create your account' : 'Welcome back'}</h2>
+          <span className="auth-eyebrow">
+            {isRegisterMode ? 'Student sign-up' : 'Account access'}
+          </span>
+          <h2>
+            {isRegisterMode ? 'Create your student account' : 'Welcome back'}
+          </h2>
           <p>
             {isRegisterMode
-              ? 'Create a student account to access your dashboard and course catalogue.'
-              : 'Log in to review registration progress and explore available courses.'}
+              ? 'Student accounts can be created here. Faculty and administrative access is provisioned by the university.'
+              : 'Sign in once and CoursePilot will open the workspace assigned to your account role.'}
           </p>
         </div>
 
@@ -108,6 +112,7 @@ export default function LoginPage() {
                 type="text"
                 value={name}
                 placeholder="Enter your full name"
+                autoComplete="name"
                 onChange={(event) => setName(event.target.value)}
               />
             </label>
@@ -118,7 +123,8 @@ export default function LoginPage() {
             <input
               type="email"
               value={email}
-              placeholder="student@example.com"
+              placeholder="you@example.com"
+              autoComplete="email"
               onChange={(event) => setEmail(event.target.value)}
             />
           </label>
@@ -129,17 +135,22 @@ export default function LoginPage() {
               type="password"
               value={password}
               placeholder="At least 6 characters"
+              autoComplete={isRegisterMode ? 'new-password' : 'current-password'}
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
 
-          {error && <p className="auth-error">{error}</p>}
+          {error && (
+            <p className="auth-error" role="alert">
+              {error}
+            </p>
+          )}
 
           <button className="auth-submit" type="submit" disabled={loading}>
             {loading
               ? 'Please wait...'
               : isRegisterMode
-                ? 'Create account'
+                ? 'Create student account'
                 : 'Log in'}
           </button>
         </form>
@@ -148,28 +159,44 @@ export default function LoginPage() {
           <span>
             {isRegisterMode
               ? 'Already have an account?'
-              : "Don't have an account?"}
+              : 'Student without an account?'}
           </span>
           <button type="button" onClick={switchMode}>
-            {isRegisterMode ? 'Log in' : 'Create account'}
+            {isRegisterMode ? 'Log in' : 'Create student account'}
           </button>
         </div>
+
+        <p className="auth-staff-note">
+          Faculty, advisors, and administrators use the same login. Staff
+          accounts must be provisioned and activated by administration.
+        </p>
       </section>
 
       <section className="auth-preview">
         <div className="preview-card">
-          <span className="preview-label">After login</span>
-          <h2>Plan registration with confidence</h2>
+          <span className="preview-label">One secure portal</span>
+          <h2>Role-based workspaces for every registration step</h2>
           <p>
-            See registration status, compare course sections, and check live
-            seat availability before building your academic plan.
+            Your account role determines what you can see and do after sign-in.
+            Student, advisor, and administrative workflows stay separated.
           </p>
 
-          <div className="preview-list">
-            <span>Registration summary</span>
-            <span>Period status</span>
-            <span>Advanced filters</span>
-            <span>Section details</span>
+          <div className="preview-role-list">
+            <article>
+              <span>Student</span>
+              <strong>Plan and submit</strong>
+              <p>Browse courses, build a selection, track status, and view your timetable.</p>
+            </article>
+            <article>
+              <span>Advisor</span>
+              <strong>Review and decide</strong>
+              <p>Inspect assigned registration requests and approve or reject with comments.</p>
+            </article>
+            <article>
+              <span>Administration</span>
+              <strong>Control and oversee</strong>
+              <p>Manage academic setup, staff access, and system oversight.</p>
+            </article>
           </div>
         </div>
       </section>
