@@ -202,6 +202,37 @@ Submission reuses the existing `registrations.submitted_at` and
 limits, and current indexes. It adds no table, column, migration, or database
 reset.
 
+## Waiting-List Queue Transactions
+
+An active queue is derived from `waitlist_entries` rather than maintained as a
+stored position. A window query partitions active entries by `section_id` and
+orders each partition by `joined_at` followed by the entry UUID. It returns
+both `row_number()` as the current one-based position and `count()` as the
+active queue size. Marking one row `removed` therefore shifts later positions
+on the next read without updating unrelated records.
+
+Join and leave transactions follow a section-first lock order:
+
+1. Resolve the public course ID and lock the matching `courses` row.
+2. Recount approved registrations while that section lock is held.
+3. On join, require a full section, reject any registration for the same
+   student and section, lock the existing waitlist row if present, and run the
+   prerequisite and schedule guards.
+4. Insert a new active row or reactivate a removed/expired row with a strictly
+   later UTC join time; promoted rows cannot rejoin.
+5. On leave, lock the owned row, require `active`, set `removed` and
+   `removed_at`, then commit.
+
+PostgreSQL uses `FOR UPDATE OF courses`, which serializes changes to one
+section across workers. The `uq_waitlist_student_section` constraint remains
+the final authority against duplicate rows. SQLite local and test writes use
+an in-process transaction mutex because SQLite ignores row-lock syntax. Both
+SQLite and PostgreSQL duplicate signatures map to
+`409 DUPLICATE_WAITLIST_ENTRY` without exposing database details.
+
+The workflow reuses the existing waitlist table, status values, unique
+constraint, and queue index. It introduces no schema migration or reset.
+
 ## Prerequisite Validation
 
 Normalized rules in `course_prerequisites` are authoritative for minimum-grade

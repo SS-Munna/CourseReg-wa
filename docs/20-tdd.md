@@ -69,6 +69,12 @@ DELETE /api/selections/{course_id}
 
 POST /api/registrations/submit
 
+GET /api/waitlists
+
+POST /api/waitlists
+
+DELETE /api/waitlists/{course_id}
+
 The protected selection routes derive the student profile from the JWT user,
 list only draft registrations, add an eligible section, and delete only an
 owned draft. They return stable errors for missing profiles or sections,
@@ -93,6 +99,13 @@ revalidates the current draft load, and changes every valid owned draft to
 shared submission timestamp, and the successful credit and schedule results.
 Specific `409` and `422` responses identify the rule that blocked submission;
 unexpected repository failures retain the safe shared `500` contract.
+
+The protected waiting-list routes also derive ownership from the JWT. They
+list live queue positions, join only a currently full and eligible section,
+and mark only an owned active entry as removed. Clear responses distinguish a
+missing section, an available direct-registration seat, an existing
+registration, a duplicate or non-active waiting-list record, unmet
+prerequisites, schedule conflicts, and safe repository failures.
 
 ## Repository Design
 
@@ -145,6 +158,15 @@ Only after every validation succeeds does it apply one UTC timestamp and move
 the locked drafts to `pending`. Validation and write failures roll back the
 whole transaction. SQLite serializes local submissions with a process mutex;
 PostgreSQL uses section-first and registration-second row locks.
+
+The waiting-list repository locks the section before every join or leave,
+recounts approved enrollment, and runs prerequisite and schedule guards before
+creating or reactivating an entry. It assigns the UTC join time inside the
+lock and calculates positions with `row_number()` over active entries ordered
+by join time and UUID. Removed and expired rows can rejoin at the back;
+promoted rows cannot. Leaves are soft state transitions, so history remains
+available while active positions shift without a bulk renumbering write.
+SQLite uses a process mutex and PostgreSQL uses `FOR UPDATE OF courses`.
 
 Supported filters:
 
@@ -254,6 +276,13 @@ and completed-course checks, live full-section detection, safe errors, and
 all-or-nothing rollback. A two-thread test proves that concurrent submissions
 transition each draft once, while PostgreSQL compilation verifies deterministic
 section and registration `FOR UPDATE` queries.
+
+Waiting-list tests cover join/list/leave behavior, live full-section checks,
+first-come ordering, position shifts, rejoining at the back, duplicate and
+registration protection, prerequisites, schedule conflicts, ownership and
+role isolation, safe errors, and rollback. Two-thread tests prove duplicate
+joins create one entry and concurrent students receive distinct positions;
+PostgreSQL compilation verifies the section lock and window queue query.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an

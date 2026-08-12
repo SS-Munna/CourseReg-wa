@@ -60,6 +60,14 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
                 "postgres-selection": FakePostgreSQLError(
                     "uq_registration_student_section"
                 ),
+                "sqlite-waitlist": Exception(
+                    "UNIQUE constraint failed: "
+                    "waitlist_entries.student_id, "
+                    "waitlist_entries.section_id"
+                ),
+                "postgres-waitlist": FakePostgreSQLError(
+                    "uq_waitlist_student_section"
+                ),
                 "unknown": Exception(
                     "sensitive database connection and record details"
                 ),
@@ -160,6 +168,27 @@ class DatabaseIntegrityErrorsTestCase(unittest.TestCase):
                     "message": (
                         "This course section is already selected or "
                         "registered."
+                    ),
+                },
+            )
+
+    def test_duplicate_waitlist_constraint_is_translated(self):
+        sqlite_response = self.client.get(
+            "/constraint/sqlite-waitlist"
+        )
+        postgres_response = self.client.get(
+            "/constraint/postgres-waitlist"
+        )
+
+        for response in (sqlite_response, postgres_response):
+            self.assertEqual(response.status_code, 409)
+            self.assertEqual(
+                response.json()["error"],
+                {
+                    "code": "DUPLICATE_WAITLIST_ENTRY",
+                    "message": (
+                        "This course section is already on the "
+                        "student's waiting list."
                     ),
                 },
             )
