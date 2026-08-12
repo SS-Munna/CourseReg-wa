@@ -10,8 +10,10 @@ from app.api.errors import (
     api_validation_exception_handler,
 )
 from app.api.routes.admin import router as admin_router
+from app.api.routes.audit_logs import router as audit_logs_router
 from app.api.routes.advisor_reviews import router as advisor_reviews_router
 from app.api.routes.auth import router as auth_router
+from app.api.routes.notifications import router as notifications_router
 from app.api.routes.courses import router as courses_router
 from app.api.routes.registration_periods import (
     router as registration_periods_router,
@@ -62,7 +64,9 @@ app.add_exception_handler(
 )
 
 app.include_router(auth_router)
+app.include_router(notifications_router)
 app.include_router(admin_router)
+app.include_router(audit_logs_router)
 app.include_router(courses_router)
 app.include_router(registration_periods_router)
 app.include_router(selections_router)

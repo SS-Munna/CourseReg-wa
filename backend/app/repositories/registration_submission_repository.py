@@ -5,9 +5,12 @@ from uuid import UUID
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
+from app.models.audit_log import AuditLog
 from app.models.completed_course import CompletionStatus, CompletedCourse
 from app.models.course import Course
+from app.models.notification import Notification
 from app.models.registration import Registration, RegistrationStatus
+from app.models.student import Student
 from app.repositories.course_repository import course_to_response
 from app.repositories.credit_repository import (
     CreditRepositoryError,
@@ -423,6 +426,37 @@ def _submit_final_registration(
                 "The final registration was submitted for advisor review."
             ),
         )
+
+        student = db.get(Student, student_id)
+        first_registration = registrations[0]
+
+        if student is not None:
+            db.add(
+                AuditLog(
+                    user_id=student.user_id,
+                    action_type="registration_submitted",
+                    entity_type="registration",
+                    entity_id=first_registration.id,
+                    action_details=(
+                        f"submitted_count={len(submitted_registrations)}"
+                    ),
+                )
+            )
+
+            if student.advisor is not None:
+                db.add(
+                    Notification(
+                        user_id=student.advisor.user_id,
+                        notification_type="registration_submitted",
+                        title="Registration review requested",
+                        message=(
+                            f"{student.user.full_name} submitted "
+                            f"{len(submitted_registrations)} course(s) "
+                            "for your review."
+                        ),
+                    )
+                )
+
         db.commit()
         return result
 

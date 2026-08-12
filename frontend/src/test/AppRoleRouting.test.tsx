@@ -3,6 +3,10 @@ import { describe, expect, it, vi } from 'vitest'
 
 import App from '../App'
 
+vi.mock('../components/NotificationCenter', () => ({
+  default: () => null,
+}))
+
 vi.mock('../pages/StudentDashboardPage', () => ({
   default: () => <div>Student workspace loaded</div>,
 }))

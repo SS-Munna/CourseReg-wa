@@ -264,3 +264,19 @@ BOOTSTRAP_SYSTEM_ADMIN_PASSWORD=replace-with-a-strong-unique-password
 The bootstrap is idempotent: if that email already exists, CoursePilot does not
 change its role or password. Keep the password in the deployment environment,
 not in source control.
+
+## Notifications and audit activity
+
+CoursePilot exposes account-scoped notifications at `/api/notifications` and a
+system-administrator audit feed at `/api/admin/audit-logs`.
+
+- Every authenticated user can view only their own notifications.
+- Notifications can be marked read individually or all at once from the shared
+  top-bar notification center.
+- Advisor decisions, waitlist promotions, course drops, student profile linking,
+  staff provisioning, access changes, and final registration submission produce
+  persisted activity records where applicable.
+- Final registration submission notifies the assigned advisor that a review is
+  waiting.
+- System administrators can review recent audit events from the administration
+  workspace. Department administrators cannot read the global audit feed.
