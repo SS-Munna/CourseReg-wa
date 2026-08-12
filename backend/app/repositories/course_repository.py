@@ -81,6 +81,7 @@ def list_courses(
     search: Optional[str] = None,
     department: Optional[str] = None,
     semester: Optional[str] = None,
+    level: Optional[str] = None,
     is_mandatory: Optional[bool] = None,
     available_only: bool = False,
 ) -> list[CourseResponse]:
@@ -105,6 +106,11 @@ def list_courses(
 
         if semester:
             query = query.filter(Course.semester == semester)
+
+        if level:
+            query = query.filter(
+                func.lower(Course.level) == level.strip().lower()
+            )
 
         if is_mandatory is not None:
             query = query.filter(Course.is_mandatory == is_mandatory)

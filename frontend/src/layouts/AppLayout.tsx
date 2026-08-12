@@ -10,42 +10,49 @@ type AppLayoutProps = {
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
+  const userInitial = user?.name.trim().charAt(0).toUpperCase() || 'S'
 
   return (
-    <div className="page">
+    <div className="app-shell">
       <header className="topbar">
         <div className="brand-block">
-          <div className="brand-mark">C</div>
+          <div className="brand-mark" aria-hidden="true">C</div>
           <div className="brand-text">
             <strong>CoursePilot</strong>
-            <span>Student Registration Portal</span>
+            <span>Academic registration</span>
           </div>
         </div>
 
         <div className="topbar-actions">
-          {user && (
-            <span className="topbar-chip">
-              {user.name}
-            </span>
-          )}
-
-          <span className="topbar-chip">Student View</span>
-          <span className="topbar-chip">Fall 2026</span>
+          <a className="catalogue-link" href="#catalogue">
+            Browse courses
+          </a>
 
           <button
             className="theme-toggle"
             type="button"
             onClick={toggleTheme}
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
           >
-            {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            <span aria-hidden="true">{theme === 'dark' ? '☀' : '☾'}</span>
           </button>
+
+          {user && (
+            <div className="user-block">
+              <span className="user-avatar" aria-hidden="true">{userInitial}</span>
+              <span>
+                <strong>{user.name}</strong>
+                <small>Student account</small>
+              </span>
+            </div>
+          )}
 
           <button
             className="logout-button"
             type="button"
             onClick={logout}
           >
-            Logout
+            Log out
           </button>
         </div>
       </header>

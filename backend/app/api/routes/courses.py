@@ -52,6 +52,10 @@ def get_courses(
         default=None,
         description="Filter by semester",
     ),
+    level: Optional[str] = Query(
+        default=None,
+        description="Filter by course level",
+    ),
     is_mandatory: Optional[bool] = Query(
         default=None,
         description="Filter mandatory courses",
@@ -68,6 +72,7 @@ def get_courses(
             search=search,
             department=department,
             semester=semester,
+            level=level,
             is_mandatory=is_mandatory,
             available_only=available_only,
         )

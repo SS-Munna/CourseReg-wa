@@ -95,8 +95,8 @@ export default function LoginPage() {
           <h2>{isRegisterMode ? 'Create your account' : 'Welcome back'}</h2>
           <p>
             {isRegisterMode
-              ? 'Create a student account to access the course catalogue.'
-              : 'Log in with your student account to continue to the course catalogue.'}
+              ? 'Create a student account to access your dashboard and course catalogue.'
+              : 'Log in to review registration progress and explore available courses.'}
           </p>
         </div>
 
@@ -159,17 +159,17 @@ export default function LoginPage() {
       <section className="auth-preview">
         <div className="preview-card">
           <span className="preview-label">After login</span>
-          <h2>Access the course catalogue</h2>
+          <h2>Plan registration with confidence</h2>
           <p>
-            Students can search course offerings, filter by department or
-            semester, and check available seats before registration.
+            See registration status, compare course sections, and check live
+            seat availability before building your academic plan.
           </p>
 
           <div className="preview-list">
-            <span>Course search</span>
-            <span>Department filter</span>
-            <span>Seat availability</span>
-            <span>Mandatory course view</span>
+            <span>Registration summary</span>
+            <span>Period status</span>
+            <span>Advanced filters</span>
+            <span>Section details</span>
           </div>
         </div>
       </section>

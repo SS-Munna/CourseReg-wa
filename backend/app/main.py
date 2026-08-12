@@ -12,6 +12,9 @@ from app.api.errors import (
 from app.api.routes.advisor_reviews import router as advisor_reviews_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.courses import router as courses_router
+from app.api.routes.registration_periods import (
+    router as registration_periods_router,
+)
 from app.api.routes.registrations import router as registrations_router
 from app.api.routes.selections import router as selections_router
 from app.api.routes.waitlists import router as waitlists_router
@@ -59,6 +62,7 @@ app.add_exception_handler(
 
 app.include_router(auth_router)
 app.include_router(courses_router)
+app.include_router(registration_periods_router)
 app.include_router(selections_router)
 app.include_router(registrations_router)
 app.include_router(waitlists_router)

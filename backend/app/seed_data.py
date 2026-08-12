@@ -1,6 +1,10 @@
+from datetime import date, datetime, timezone
+
 from sqlalchemy.orm import Session
 
 from app.models.course import Course
+from app.models.registration_period import RegistrationPeriod
+from app.models.semester import Semester
 from app.models.user import User
 
 
@@ -179,6 +183,84 @@ SAMPLE_COURSES = [
 DEMO_USERS = []
 
 
+SAMPLE_REGISTRATION_PERIODS = [
+    {
+        "semester_name": "Fall",
+        "academic_year": 2026,
+        "semester_start": date(2026, 8, 1),
+        "semester_end": date(2026, 12, 20),
+        "semester_status": "active",
+        "opening_time": datetime(2026, 8, 1, tzinfo=timezone.utc),
+        "closing_time": datetime(2026, 9, 15, 23, 59, tzinfo=timezone.utc),
+        "drop_deadline": date(2026, 10, 15),
+        "minimum_credit": 9,
+        "maximum_credit": 18,
+        "status": "open",
+    },
+    {
+        "semester_name": "Spring",
+        "academic_year": 2027,
+        "semester_start": date(2027, 1, 10),
+        "semester_end": date(2027, 5, 20),
+        "semester_status": "upcoming",
+        "opening_time": datetime(2026, 12, 1, tzinfo=timezone.utc),
+        "closing_time": datetime(2027, 1, 8, 23, 59, tzinfo=timezone.utc),
+        "drop_deadline": date(2027, 2, 5),
+        "minimum_credit": 9,
+        "maximum_credit": 18,
+        "status": "scheduled",
+    },
+]
+
+
+def _seed_registration_periods(db: Session) -> None:
+    semesters_by_label = {
+        (semester.semester_name.casefold(), semester.academic_year): semester
+        for semester in db.query(Semester).all()
+    }
+    existing_period_labels = {
+        (
+            period.semester.semester_name.casefold(),
+            period.semester.academic_year,
+        )
+        for period in db.query(RegistrationPeriod).all()
+    }
+
+    for period_data in SAMPLE_REGISTRATION_PERIODS:
+        label = (
+            period_data["semester_name"].casefold(),
+            period_data["academic_year"],
+        )
+
+        if label in existing_period_labels:
+            continue
+
+        semester = semesters_by_label.get(label)
+
+        if semester is None:
+            semester = Semester(
+                semester_name=period_data["semester_name"],
+                academic_year=period_data["academic_year"],
+                start_date=period_data["semester_start"],
+                end_date=period_data["semester_end"],
+                status=period_data["semester_status"],
+            )
+            semesters_by_label[label] = semester
+
+        db.add(
+            RegistrationPeriod(
+                semester=semester,
+                opening_time=period_data["opening_time"],
+                closing_time=period_data["closing_time"],
+                drop_deadline=period_data["drop_deadline"],
+                minimum_credit=period_data["minimum_credit"],
+                maximum_credit=period_data["maximum_credit"],
+                status=period_data["status"],
+            )
+        )
+        existing_period_labels.add(label)
+
+
 def seed_database(db: Session) -> None:
     if db.query(Course).count() == 0:
         for course_data in SAMPLE_COURSES:
@@ -187,5 +269,7 @@ def seed_database(db: Session) -> None:
     if db.query(User).count() == 0:
         for user_data in DEMO_USERS:
             db.add(User(**user_data))
+
+    _seed_registration_periods(db)
 
     db.commit()

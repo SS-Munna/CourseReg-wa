@@ -32,6 +32,7 @@ export function ThemeProvider({ children }: ThemeProviderProps) {
   )
 }
 
+// oxlint-disable-next-line react/only-export-components
 export function useTheme() {
   const context = useContext(ThemeContext)
 
