@@ -16,6 +16,11 @@ import {
   updateAccountAccess,
 } from '../../services/adminApi'
 import { ApiRequestError } from '../../services/apiClient'
+import {
+  isTrimmedLengthBetween,
+  isValidEmail,
+  parseIntegerInRange,
+} from '../../utils/validation'
 import type {
   AdminAccountStatus,
   AdminOverview,
@@ -265,14 +270,27 @@ export default function AdminDashboardPage() {
       return
     }
 
-    if (password.length < 8) {
-      setFormError('Temporary password must be at least 8 characters.')
+    if (!isTrimmedLengthBetween(trimmedName, 2, 255)) {
+      setFormError('Staff name must be between 2 and 255 characters.')
       return
     }
 
-    if (role === 'advisor' && (!departmentId || !trimmedEmployeeNumber)) {
+    if (!isValidEmail(trimmedEmail)) {
+      setFormError('Enter a valid staff email address.')
+      return
+    }
+
+    if (password.length < 8 || password.length > 128) {
+      setFormError('Temporary password must be between 8 and 128 characters.')
+      return
+    }
+
+    if (
+      role === 'advisor' &&
+      (!departmentId || !isTrimmedLengthBetween(trimmedEmployeeNumber, 2, 64))
+    ) {
       setFormError(
-        'Select a department and enter an employee number for the advisor.',
+        'Select a department and enter a 2–64 character employee number for the advisor.',
       )
       return
     }
@@ -331,17 +349,16 @@ const linkStudentProfile = async (
     return
   }
 
-  const trimester = Number(studentTrimester)
+  const trimester = parseIntegerInRange(studentTrimester, 1, 30)
 
   if (
-    !studentNumber.trim() ||
+    !isTrimmedLengthBetween(studentNumber, 2, 64) ||
     !studentProgramId ||
     !studentAdvisorId ||
-    !Number.isInteger(trimester) ||
-    trimester < 1
+    trimester === null
   ) {
     setStudentFormError(
-      'Student number, program, advisor, and trimester are required.',
+      'Enter a 2–64 character student number, program, advisor, and trimester from 1 to 30.',
     )
     return
   }
@@ -399,8 +416,14 @@ const saveDepartment = async (
   setAcademicSetupError('')
   setFeedback('')
 
-  if (!token || !departmentCode.trim() || !departmentName.trim()) {
-    setAcademicSetupError('Department code and name are required.')
+  if (
+    !token ||
+    !isTrimmedLengthBetween(departmentCode, 2, 32) ||
+    !isTrimmedLengthBetween(departmentName, 2, 255)
+  ) {
+    setAcademicSetupError(
+      'Department code must be 2–32 characters and name 2–255 characters.',
+    )
     return
   }
 
@@ -431,21 +454,20 @@ const saveProgram = async (
   setAcademicSetupError('')
   setFeedback('')
 
-  const minimumCredit = Number(programMinimumCredit)
-  const maximumCredit = Number(programMaximumCredit)
+  const minimumCredit = parseIntegerInRange(programMinimumCredit, 0, 60)
+  const maximumCredit = parseIntegerInRange(programMaximumCredit, 0, 60)
 
   if (
     !token ||
     !programDepartmentId ||
-    !programCode.trim() ||
-    !programName.trim() ||
-    !Number.isInteger(minimumCredit) ||
-    !Number.isInteger(maximumCredit) ||
-    minimumCredit < 0 ||
+    !isTrimmedLengthBetween(programCode, 2, 32) ||
+    !isTrimmedLengthBetween(programName, 2, 255) ||
+    minimumCredit === null ||
+    maximumCredit === null ||
     maximumCredit < minimumCredit
   ) {
     setAcademicSetupError(
-      'Choose a department and enter a valid program and credit range.',
+      'Choose a department, use valid program details, and keep credits between 0 and 60 with maximum not below minimum.',
     )
     return
   }
@@ -728,12 +750,13 @@ const saveProgram = async (
             created and activated here.
           </p>
 
-          <form className="admin-create-form" onSubmit={createStaff}>
+          <form className="admin-create-form" onSubmit={createStaff} noValidate>
             <label>
               <span>Full name</span>
               <input
                 value={name}
                 placeholder="Dr. Nadia Rahman"
+                maxLength={255}
                 onChange={(event) => setName(event.target.value)}
               />
             </label>
@@ -744,6 +767,7 @@ const saveProgram = async (
                 type="email"
                 value={email}
                 placeholder="staff@university.edu"
+                maxLength={254}
                 onChange={(event) => setEmail(event.target.value)}
               />
             </label>
@@ -754,6 +778,7 @@ const saveProgram = async (
                 type="password"
                 value={password}
                 placeholder="At least 8 characters"
+                maxLength={128}
                 autoComplete="new-password"
                 onChange={(event) => setPassword(event.target.value)}
               />
@@ -800,6 +825,7 @@ const saveProgram = async (
                   <input
                     value={employeeNumber}
                     placeholder="FAC-001"
+                    maxLength={64}
                     onChange={(event) =>
                       setEmployeeNumber(event.target.value)
                     }
@@ -860,6 +886,7 @@ const saveProgram = async (
     <form
       className="admin-create-form"
       onSubmit={linkStudentProfile}
+      noValidate
     >
       <div className="admin-selected-student">
         <strong>{selectedStudent.name}</strong>
@@ -871,6 +898,7 @@ const saveProgram = async (
         <input
           value={studentNumber}
           placeholder="STU-2026-001"
+          maxLength={64}
           onChange={(event) => setStudentNumber(event.target.value)}
         />
       </label>
@@ -987,6 +1015,7 @@ const saveProgram = async (
           <input
             value={departmentCode}
             placeholder="CSE"
+            maxLength={32}
             onChange={(event) =>
               setDepartmentCode(event.target.value)
             }
@@ -997,6 +1026,7 @@ const saveProgram = async (
           <input
             value={departmentName}
             placeholder="Computer Science and Engineering"
+            maxLength={255}
             onChange={(event) =>
               setDepartmentName(event.target.value)
             }
@@ -1037,6 +1067,7 @@ const saveProgram = async (
           <input
             value={programCode}
             placeholder="BSC-CSE"
+            maxLength={32}
             onChange={(event) => setProgramCode(event.target.value)}
           />
         </label>
@@ -1045,6 +1076,7 @@ const saveProgram = async (
           <input
             value={programName}
             placeholder="BSc in Computer Science and Engineering"
+            maxLength={255}
             onChange={(event) => setProgramName(event.target.value)}
           />
         </label>

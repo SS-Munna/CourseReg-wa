@@ -293,3 +293,7 @@ instance. It covers authentication and role boundaries, core registration and
 waitlist workflows, advisor/admin APIs, notification and audit access, shared
 error contracts, persistence constraints, and a cross-route API surface
 regression matrix. See `backend/TESTING.md` for focused and verbose commands.
+
+### Frontend quality gate
+
+Frontend input validation now mirrors critical API boundaries for authentication, staff provisioning, student profile setup, and academic program configuration. Run `npm test`, `npm run lint`, and `npm run build` from `frontend/`; detailed guidance is in `frontend/TESTING.md`.
