@@ -1,6 +1,4 @@
-from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
-from threading import RLock
 from uuid import UUID
 
 from sqlalchemy import func
@@ -26,14 +24,12 @@ from app.repositories.schedule_conflict_repository import (
     ScheduleConflictRepositoryError,
     require_no_schedule_conflict_for_course,
 )
+from app.repositories.section_transaction import section_transaction_guard
 from app.schemas.course import SectionAvailability
 from app.schemas.waitlist import (
     WaitlistEntryDetails,
     WaitlistLeaveResult,
 )
-
-
-_SQLITE_WAITLIST_MUTEX = RLock()
 
 
 class WaitlistRepositoryError(RuntimeError):
@@ -240,13 +236,6 @@ def list_active_waitlist_entries(
 
     except Exception as error:
         raise WaitlistRepositoryError(str(error)) from error
-
-
-def _waitlist_guard(db: Session):
-    if db.get_bind().dialect.name == "sqlite":
-        return _SQLITE_WAITLIST_MUTEX
-
-    return nullcontext()
 
 
 def _approved_enrollment(
@@ -463,7 +452,7 @@ def join_waitlist(
     student_id: UUID,
     course_id: str,
 ) -> WaitlistEntryDetails:
-    with _waitlist_guard(db):
+    with section_transaction_guard(db):
         return _join_waitlist(
             db,
             student_id=student_id,
@@ -552,7 +541,7 @@ def leave_waitlist(
     student_id: UUID,
     course_id: str,
 ) -> WaitlistLeaveResult:
-    with _waitlist_guard(db):
+    with section_transaction_guard(db):
         return _leave_waitlist(
             db,
             student_id=student_id,

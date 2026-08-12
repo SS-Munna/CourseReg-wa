@@ -13,7 +13,9 @@ capacity inside a locked transaction, so concurrent requests cannot consume
 the same final seat. Final submission revalidates the student's current load
 and atomically moves only valid draft selections to `pending` advisor review.
 Eligible students can join or leave full-section waiting lists and see their
-live first-come, first-served queue positions.
+live first-come, first-served queue positions. When a seat is released, the
+promotion service can atomically approve the first still-eligible student and
+record the queue transition, notification, and audit event.
 
 ## Tech Stack
 
@@ -121,12 +123,15 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/repositories/registration_submission_repository.py
 - backend/app/repositories/schedule_conflict_repository.py
 - backend/app/repositories/seat_allocation_repository.py
+- backend/app/repositories/section_transaction.py
 - backend/app/repositories/selection_repository.py
+- backend/app/repositories/waitlist_promotion_repository.py
 - backend/app/repositories/waitlist_repository.py
 - backend/app/schemas/registration_submission.py
 - backend/app/schemas/schedule_conflict.py
 - backend/app/schemas/seat_allocation.py
 - backend/app/schemas/waitlist.py
+- backend/app/schemas/waitlist_promotion.py
 - backend/app/api/routes/courses.py
 - backend/app/api/routes/registrations.py
 - backend/app/api/routes/selections.py
