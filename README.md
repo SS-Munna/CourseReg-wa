@@ -2,9 +2,11 @@
 
 CoursePilot is a student course registration and course catalogue web application.
 
-The current implemented features include the student course catalogue and
+The current implemented features include a responsive student dashboard,
+registration-period status, registration summary, course catalogue, and
 authenticated draft-course selection. Students can search and filter current
-offerings, check live section availability, validate prerequisite completion
+offerings by department, semester, level, course type, and seat availability;
+open a complete section-details view; check live availability; validate prerequisite completion
 and minimum grades, add, list, or remove their own draft selections, and see
 whether their active credit load is within program limits. Overlapping class
 schedules are detected across draft, pending, and approved registrations and
@@ -37,7 +39,7 @@ transaction.
 
 ## Current Feature Flow
 
-React Course Catalogue Page -> frontend API service -> FastAPI endpoint -> SQLAlchemy repository -> courses table -> JSON response -> React course cards
+React Student Dashboard -> frontend API services -> FastAPI endpoints -> SQLAlchemy repositories -> registration and course tables -> shared JSON responses -> dashboard summaries and course cards
 
 ## Main API Endpoints
 
@@ -46,6 +48,8 @@ GET /api/courses
 GET /api/courses/{course_id}/availability
 
 GET /api/courses/{course_id}/prerequisite-validation
+
+GET /api/registration-periods/current
 
 GET /api/selections
 
@@ -84,6 +88,7 @@ Optional query parameters:
 - search
 - department
 - semester
+- level
 - is_mandatory
 - available_only
 
@@ -105,6 +110,7 @@ Open:
 - http://127.0.0.1:8000/api/courses
 - http://127.0.0.1:8000/api/courses/cse-101/availability
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
+- http://127.0.0.1:8000/api/registration-periods/current
 - http://127.0.0.1:8000/api/selections
 - http://127.0.0.1:8000/api/registrations/submit
 - http://127.0.0.1:8000/api/registrations
@@ -117,6 +123,11 @@ From the frontend folder:
 
     npm install
     npm run dev
+
+Run frontend tests and a production build:
+
+    npm test
+    npm run build
 
 Open:
 
@@ -137,7 +148,9 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/models/registration_period.py
 - backend/app/models/user.py
 - backend/app/schemas/course.py
+- backend/app/schemas/registration_period.py
 - backend/app/repositories/course_repository.py
+- backend/app/repositories/registration_period_status_repository.py
 - backend/app/repositories/credit_repository.py
 - backend/app/repositories/prerequisite_repository.py
 - backend/app/repositories/course_drop_repository.py
@@ -156,6 +169,7 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/schemas/waitlist.py
 - backend/app/schemas/waitlist_promotion.py
 - backend/app/api/routes/courses.py
+- backend/app/api/routes/registration_periods.py
 - backend/app/api/routes/registrations.py
 - backend/app/api/routes/selections.py
 - backend/app/api/routes/waitlists.py
@@ -164,12 +178,15 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 
 ## Current Frontend Structure
 
-- frontend/src/pages/CourseCatalogPage/
+- frontend/src/pages/StudentDashboardPage/
 - frontend/src/components/CourseCard/
+- frontend/src/components/CourseDetailsModal/
 - frontend/src/components/CourseFilters/
 - frontend/src/components/CourseStats/
 - frontend/src/services/courseApi.ts
+- frontend/src/services/dashboardApi.ts
 - frontend/src/types/course.ts
+- frontend/src/types/dashboard.ts
 
 ## Notes
 

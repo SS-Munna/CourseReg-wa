@@ -11,17 +11,17 @@ function CourseStats({ courses }: CourseStatsProps) {
   )
 
   const mandatoryCount = courses.filter((course) => course.is_mandatory).length
-  const fullCount = courses.filter((course) => course.available_seats === 0).length
+  const openCount = courses.filter((course) => course.available_seats > 0).length
 
   return (
-    <section className="ledger">
+    <section className="catalogue-stats" aria-label="Catalogue totals">
       <div className="ledger-row">
         <span className="label">Total courses</span>
         <span className="value">{courses.length}</span>
       </div>
 
       <div className="ledger-row">
-        <span className="label">Open seats</span>
+        <span className="label">Seats available</span>
         <span className="value">{totalAvailableSeats}</span>
       </div>
 
@@ -31,8 +31,8 @@ function CourseStats({ courses }: CourseStatsProps) {
       </div>
 
       <div className="ledger-row">
-        <span className="label">Full</span>
-        <span className="value">{fullCount}</span>
+        <span className="label">Open sections</span>
+        <span className="value">{openCount}</span>
       </div>
     </section>
   )

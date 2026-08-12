@@ -4,7 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './context/ThemeContext'
 import AppLayout from './layouts/AppLayout'
 import LoginPage from './pages/LoginPage'
-import CourseCatalogPage from './pages/CourseCatalogPage'
+import StudentDashboardPage from './pages/StudentDashboardPage'
 
 function AppContent() {
   const { isAuthenticated } = useAuth()
@@ -15,7 +15,7 @@ function AppContent() {
 
   return (
     <AppLayout>
-      <CourseCatalogPage />
+      <StudentDashboardPage />
     </AppLayout>
   )
 }

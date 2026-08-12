@@ -1,9 +1,12 @@
+import type { FormEvent } from 'react'
+
 import type { CourseFilters as CourseFilterValues } from '../../types/course'
 
 type CourseFiltersProps = {
   filters: CourseFilterValues
   departments: string[]
   semesters: string[]
+  levels: string[]
   onFiltersChange: (filters: CourseFilterValues) => void
   onApplyFilters: () => void
   onClearFilters: () => void
@@ -13,18 +16,27 @@ function CourseFilters({
   filters,
   departments,
   semesters,
+  levels,
   onFiltersChange,
   onApplyFilters,
   onClearFilters,
 }: CourseFiltersProps) {
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    onApplyFilters()
+  }
+
   return (
-    <section className="panel">
+    <section className="catalogue-panel" aria-labelledby="catalogue-filters-title">
       <div className="panel-header">
-        <h2>Search and filters</h2>
-        <p>Narrow the list by department, semester, or seat availability.</p>
+        <div>
+          <span className="section-eyebrow">Find your courses</span>
+          <h2 id="catalogue-filters-title">Search and filters</h2>
+        </div>
+        <p>Search by course code or title, then refine the result.</p>
       </div>
 
-      <div className="filters">
+      <form className="filters" onSubmit={handleSubmit}>
         <div className="field search-field">
           <label htmlFor="search">Search</label>
           <input
@@ -74,6 +86,42 @@ function CourseFilters({
           </select>
         </div>
 
+        <div className="field">
+          <label htmlFor="level">Level</label>
+          <select
+            id="level"
+            value={filters.level || ''}
+            onChange={(event) =>
+              onFiltersChange({ ...filters, level: event.target.value })
+            }
+          >
+            <option value="">All levels</option>
+            {levels.map((level) => (
+              <option key={level} value={level}>
+                {level}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="field">
+          <label htmlFor="course-type">Course type</label>
+          <select
+            id="course-type"
+            value={filters.courseType || 'all'}
+            onChange={(event) =>
+              onFiltersChange({
+                ...filters,
+                courseType: event.target.value as CourseFilterValues['courseType'],
+              })
+            }
+          >
+            <option value="all">All course types</option>
+            <option value="mandatory">Mandatory</option>
+            <option value="elective">Elective</option>
+          </select>
+        </div>
+
         <label className="check-field">
           <input
             type="checkbox"
@@ -85,26 +133,15 @@ function CourseFilters({
           Available only
         </label>
 
-        <label className="check-field">
-          <input
-            type="checkbox"
-            checked={Boolean(filters.mandatoryOnly)}
-            onChange={(event) =>
-              onFiltersChange({ ...filters, mandatoryOnly: event.target.checked })
-            }
-          />
-          Mandatory only
-        </label>
-
         <div className="actions">
-          <button type="button" className="primary" onClick={onApplyFilters}>
+          <button type="submit" className="primary">
             Apply filters
           </button>
           <button type="button" className="secondary" onClick={onClearFilters}>
             Clear
           </button>
         </div>
-      </div>
+      </form>
     </section>
   )
 }

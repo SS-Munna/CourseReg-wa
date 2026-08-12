@@ -23,6 +23,11 @@ export type Course = {
   schedule?: CourseSchedule[]
 }
 
+export type SectionAvailability = Course & {
+  enrollment: number
+  is_full: boolean
+}
+
 export type CourseApiResponse = {
   success: boolean
   data: Course[]
@@ -32,6 +37,12 @@ export type CourseFilters = {
   search?: string
   department?: string
   semester?: string
+  level?: string
   availableOnly?: boolean
-  mandatoryOnly?: boolean
+  courseType?: 'all' | 'mandatory' | 'elective'
+}
+
+export type SectionAvailabilityApiResponse = {
+  success: boolean
+  data: SectionAvailability
 }

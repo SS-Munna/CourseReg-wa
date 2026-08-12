@@ -280,6 +280,55 @@ class SectionAvailabilityApiTestCase(unittest.TestCase):
             },
         )
 
+    def test_catalogue_filters_course_level_case_insensitively(self):
+        db = self.session_factory()
+        self.addCleanup(db.close)
+        suffix = uuid4().hex[:10]
+        undergraduate = Course(
+            course_id=f"undergraduate-{suffix}",
+            code=f"UG {suffix}",
+            title="Undergraduate Course",
+            department="Testing",
+            semester="Fall 2026",
+            instructor="Dr. Level",
+            credits=3,
+            capacity=20,
+            available_seats=20,
+            is_mandatory=False,
+            level="Undergraduate",
+            section="A",
+        )
+        graduate = Course(
+            course_id=f"graduate-{suffix}",
+            code=f"GR {suffix}",
+            title="Graduate Course",
+            department="Testing",
+            semester="Fall 2026",
+            instructor="Dr. Level",
+            credits=3,
+            capacity=20,
+            available_seats=20,
+            is_mandatory=False,
+            level="Graduate",
+            section="A",
+        )
+        db.add_all([undergraduate, graduate])
+        db.commit()
+
+        response = self.client.get(
+            "/api/courses",
+            params={
+                "search": suffix,
+                "level": "graduate",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [course["course_id"] for course in response.json()["data"]],
+            [graduate.course_id],
+        )
+
     def test_blank_section_identifier_uses_validation_error_contract(self):
         response = self.client.get(
             "/api/courses/%20/availability"
