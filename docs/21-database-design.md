@@ -136,8 +136,35 @@ The catalogue's `available_only` filter uses this same database-derived count,
 so a section becomes full without requiring a separate cached seat update.
 The existing `courses.available_seats` column is retained for compatibility
 with the current denormalized catalogue schema, but it is not authoritative for
-availability reads. Issue #26 adds transactional locking for writes that
-allocate the final seat.
+availability reads.
+
+## Transactional Seat Allocation
+
+Only a `pending` registration can receive a new seat. Allocation uses one
+database transaction with this order:
+
+1. Join the registration to its section and lock the `courses` row.
+2. Lock and refresh the registration row.
+3. Recount approved registrations for the locked section.
+4. Reject when approved enrollment is already at capacity.
+5. Otherwise change the pending row to `approved`, flush, and commit.
+
+PostgreSQL emits `FOR UPDATE OF courses` for the first step. Concurrent
+allocators for one section therefore serialize on the same row; a waiting
+transaction recounts after the first commit and cannot reuse the final seat.
+Every allocator follows section-then-registration lock order to avoid inverted
+lock ordering. SQLite omits row-lock syntax, so the local/test path holds an
+in-process transaction mutex through commit.
+
+An approved retry is idempotent and reports the current derived enrollment
+without adding another seat. Draft, rejected, and dropped rows are invalid
+allocation states. A full-section error leaves the candidate pending. The
+allocator continues to derive capacity from `courses.capacity` and approved
+registration rows; it does not depend on the compatibility
+`courses.available_seats` value.
+
+This feature reuses the existing course and registration tables and indexes.
+It adds no table, column, startup migration, or production reset.
 
 ## Prerequisite Validation
 

@@ -8,7 +8,9 @@ offerings, check live section availability, validate prerequisite completion
 and minimum grades, add, list, or remove their own draft selections, and see
 whether their active credit load is within program limits. Overlapping class
 schedules are detected across draft, pending, and approved registrations and
-blocked with both course and time details.
+blocked with both course and time details. Approved-seat allocation rechecks
+capacity inside a locked transaction, so concurrent requests cannot consume
+the same final seat.
 
 ## Tech Stack
 
@@ -104,8 +106,10 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - backend/app/repositories/credit_repository.py
 - backend/app/repositories/prerequisite_repository.py
 - backend/app/repositories/schedule_conflict_repository.py
+- backend/app/repositories/seat_allocation_repository.py
 - backend/app/repositories/selection_repository.py
 - backend/app/schemas/schedule_conflict.py
+- backend/app/schemas/seat_allocation.py
 - backend/app/api/routes/courses.py
 - backend/app/api/routes/selections.py
 - backend/app/seed_data.py
