@@ -166,6 +166,42 @@ registration rows; it does not depend on the compatibility
 This feature reuses the existing course and registration tables and indexes.
 It adds no table, column, startup migration, or production reset.
 
+## Final Registration Submission Transaction
+
+Final submission is an atomic state transition on the authenticated student's
+current draft registrations. The transaction follows this order:
+
+1. Select the student's draft sections by internal course ID and lock the
+   `courses` rows in deterministic order.
+2. Select and lock the matching `registrations` rows by registration UUID.
+3. Re-read the active registration set and reject normalized duplicate course
+   codes or previously completed non-failing courses.
+4. Revalidate prerequisites, the program credit range, and all active schedule
+   pairs through the existing repository guards.
+5. Recount approved enrollment for every locked section and reject any section
+   already at capacity.
+6. Apply one UTC `submitted_at` value, change every locked draft to `pending`,
+   flush, and commit.
+
+Any validation or repository failure rolls back the transaction, so no subset
+of the draft load can become pending. Existing pending and approved records
+may participate in credit, duplicate, and schedule validation but are never
+rewritten by submission. The derived seat count ignores the compatibility
+`courses.available_seats` value and counts only approved registrations.
+
+PostgreSQL compiles the first two reads as `FOR UPDATE OF courses` and
+`FOR UPDATE OF registrations`. Section-first lock ordering matches the safe
+seat allocator and prevents an approval transaction from changing capacity
+while a submission is performing its final seat check. SQLite omits row locks,
+so local and test submissions hold an in-process mutex through commit.
+Concurrent retries therefore submit each draft at most once; a later request
+finds no draft rows and returns the no-drafts result.
+
+Submission reuses the existing `registrations.submitted_at` and
+`registration_status` columns, course data, completed-course records, program
+limits, and current indexes. It adds no table, column, migration, or database
+reset.
+
 ## Prerequisite Validation
 
 Normalized rules in `course_prerequisites` are authoritative for minimum-grade

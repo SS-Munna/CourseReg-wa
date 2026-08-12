@@ -310,7 +310,7 @@ Draft, pending, and approved registrations count toward the active load.
 Rejected and dropped registrations do not. Limits come from the student's
 program, and course credits are summed from the current registration rows, so
 the result is not stored or cached. The reusable `require_valid_credit_load`
-guard is intended for the final submission transaction in Issue #27.
+guard is also used by the final registration-submission transaction.
 
 ## Schedule-conflict validation API
 
@@ -339,8 +339,8 @@ Therefore, one meeting may start exactly when another ends. Draft, pending,
 and approved registrations participate; rejected and dropped registrations do
 not. Every weekly meeting entry is checked. Invalid stored schedule values
 produce a safe database-operation response rather than exposing stored data.
-The reusable `require_no_schedule_conflicts` guard is intended for the final
-submission transaction in Issue #27.
+The reusable `require_no_schedule_conflicts` guard is also used by final
+registration submission.
 
 ## Safe seat allocation
 
@@ -364,6 +364,43 @@ Full-section and invalid-state errors remain typed for future advisor and
 waiting-list APIs to translate into safe responses. No public allocation
 endpoint is introduced in this issue; advisor approval and automatic
 waitlist promotion will reuse this transaction boundary.
+
+## Final registration submission API
+
+Authenticated students submit their current draft load for advisor review
+with:
+
+```text
+POST /api/registrations/submit
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+The API derives the student from the JWT account and never accepts a student
+identifier from the request. It locks the student's selected sections in a
+deterministic order, then locks the current draft registration rows. While the
+same transaction is open, it rechecks normalized duplicate-course rules,
+previously completed courses, prerequisites, the program credit range,
+schedule conflicts, and live approved enrollment against section capacity.
+
+If every check passes, only the locked `draft` rows move to `pending`; existing
+`pending` and `approved` rows remain unchanged. All submitted rows receive the
+same UTC `submitted_at` value, and the response includes the submitted course
+details plus the successful credit and schedule validations. No seat is
+allocated at submission time. Advisor approval must still use the safe-seat
+allocator, which rechecks capacity before changing a pending row to approved.
+
+Invalid submissions roll back without changing any draft or timestamp. The
+API returns structured errors for no draft selections, duplicate course codes,
+previous completion, unmet prerequisites, below-minimum or above-maximum
+credits, schedule conflicts, and full sections. Unexpected repository errors
+return the generic safe database-operation response.
+
+PostgreSQL uses `FOR UPDATE OF courses` followed by
+`FOR UPDATE OF registrations`; every submission follows the same section-first
+lock order as seat allocation. SQLite local and test submissions use an
+in-process transaction mutex because SQLite omits row-lock syntax. Concurrent
+submissions therefore transition each draft at most once. This flow reuses the
+existing tables and requires no migration or database reset.
 
 ## Course data integrity
 
@@ -463,9 +500,10 @@ Draft registrations are created, listed, and removed through the protected
 selection API. Credit-limit validation is available through the protected
 credit-validation API. Schedule-conflict checks block invalid draft additions
 and are available through the protected conflict-validation API. Pending
-registrations can be approved through the reusable safe-seat allocator. Final
-submission, advisor routes, notifications, and audit-log automation remain
-separate workflow features.
+registrations can be approved through the reusable safe-seat allocator. The
+final-submission API revalidates and moves owned drafts to `pending`. Advisor
+review routes, notifications, and audit-log automation remain separate
+workflow features.
 
 ## Prerequisite and completed-course models
 
