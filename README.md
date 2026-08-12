@@ -15,7 +15,11 @@ and atomically moves only valid draft selections to `pending` advisor review.
 Eligible students can join or leave full-section waiting lists and see their
 live first-come, first-served queue positions. When a seat is released, the
 promotion service can atomically approve the first still-eligible student and
-record the queue transition, notification, and audit event.
+record the queue transition, notification, and audit event. Assigned advisors
+can list and inspect submitted requests, then atomically approve the whole load
+with live capacity protection or reject it with a required reason. Every
+advisor decision records the reviewer and time and creates one student
+notification and one audit event.
 
 ## Tech Stack
 
@@ -60,6 +64,12 @@ GET /api/waitlists
 POST /api/waitlists
 
 DELETE /api/waitlists/{course_id}
+
+GET /api/advisor/registration-requests
+
+GET /api/advisor/registration-requests/{request_id}
+
+POST /api/advisor/registration-requests/{request_id}/decision
 
 Optional query parameters:
 

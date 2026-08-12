@@ -9,6 +9,7 @@ from app.api.errors import (
     api_unhandled_exception_handler,
     api_validation_exception_handler,
 )
+from app.api.routes.advisor_reviews import router as advisor_reviews_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.courses import router as courses_router
 from app.api.routes.registrations import router as registrations_router
@@ -61,6 +62,7 @@ app.include_router(courses_router)
 app.include_router(selections_router)
 app.include_router(registrations_router)
 app.include_router(waitlists_router)
+app.include_router(advisor_reviews_router)
 
 
 @app.on_event("startup")
