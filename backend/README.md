@@ -47,6 +47,7 @@ From the `backend` folder:
 - http://127.0.0.1:8000/api/courses/cse-201/prerequisite-validation
 - http://127.0.0.1:8000/api/selections
 - http://127.0.0.1:8000/api/selections/schedule-conflict-validation
+- http://127.0.0.1:8000/api/waitlists
 - http://127.0.0.1:8000/api/auth/register
 - http://127.0.0.1:8000/api/auth/login
 - http://127.0.0.1:8000/api/auth/me
@@ -402,6 +403,41 @@ in-process transaction mutex because SQLite omits row-lock syntax. Concurrent
 submissions therefore transition each draft at most once. This flow reuses the
 existing tables and requires no migration or database reset.
 
+## Waiting-list API
+
+Authenticated students manage their own full-section waiting lists with:
+
+```text
+GET /api/waitlists
+POST /api/waitlists
+DELETE /api/waitlists/{course_id}
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+`POST` accepts a public course-section ID and returns `201` with the active
+entry, current course details, queue position, and total active students
+waiting for that section. Before writing, one transaction locks the section,
+recounts approved registrations, confirms the section is full, rejects an
+existing registration or active waiting-list entry, and reuses the existing
+prerequisite and candidate schedule-conflict guards. A removed or expired
+entry can rejoin using the same row and receives a new join time at the back
+of the queue. A promoted entry cannot be reactivated.
+
+`GET` returns only the authenticated student's active entries. Positions and
+queue totals are calculated from all active entries with a database window
+query ordered by `joined_at` and the entry UUID; no mutable position number is
+stored. `DELETE` marks only an owned active entry as `removed`, records a UTC
+removal time, and reports its previous position plus the remaining queue size.
+Later reads therefore show shifted positions automatically.
+
+PostgreSQL serializes same-section joins and leaves with
+`FOR UPDATE OF courses`. Join times are assigned while that lock is held, and
+the named student/section uniqueness constraint remains the final duplicate
+authority. SQLite local and test transactions use an in-process mutex because
+SQLite omits row locks. Automatic seat promotion remains the next workflow and
+will reuse the section-first lock order and safe-seat allocator. The existing
+waitlist table already supports this API, so no migration or reset is needed.
+
 ## Course data integrity
 
 Each current `courses` row represents one course section in one semester.
@@ -502,8 +538,9 @@ credit-validation API. Schedule-conflict checks block invalid draft additions
 and are available through the protected conflict-validation API. Pending
 registrations can be approved through the reusable safe-seat allocator. The
 final-submission API revalidates and moves owned drafts to `pending`. Advisor
-review routes, notifications, and audit-log automation remain separate
-workflow features.
+review routes remain separate workflow features. The protected waiting-list
+API now joins, lists, and leaves full-section queues; automatic promotion,
+notifications, and audit-log automation remain separate workflow features.
 
 ## Prerequisite and completed-course models
 

@@ -13,6 +13,7 @@ from app.api.routes.auth import router as auth_router
 from app.api.routes.courses import router as courses_router
 from app.api.routes.registrations import router as registrations_router
 from app.api.routes.selections import router as selections_router
+from app.api.routes.waitlists import router as waitlists_router
 from app.config import get_allowed_origins, settings
 from app.database import (
     SessionLocal,
@@ -59,6 +60,7 @@ app.include_router(auth_router)
 app.include_router(courses_router)
 app.include_router(selections_router)
 app.include_router(registrations_router)
+app.include_router(waitlists_router)
 
 
 @app.on_event("startup")

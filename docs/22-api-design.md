@@ -522,6 +522,94 @@ Concurrent submissions therefore transition each draft at most once. This
 endpoint creates no approved enrollment; advisor approval remains responsible
 for calling the safe-seat allocator and rechecking capacity.
 
+## Waiting-List API
+
+```text
+GET /api/waitlists
+POST /api/waitlists
+DELETE /api/waitlists/{course_id}
+Authorization: Bearer <signed-jwt-access-token>
+```
+
+All routes are student-only and derive the student profile from the signed JWT
+account. No client-supplied student identifier can list or change another
+student's queue records.
+
+Join request:
+
+```json
+{
+  "course_id": "cse-301-a"
+}
+```
+
+Successful `201 Created` response:
+
+```json
+{
+  "success": true,
+  "data": {
+    "waitlist_entry_id": "7fa7dca1-7193-44ed-a171-e122b2fc7898",
+    "waitlist_status": "active",
+    "joined_at": "2026-08-12T09:15:20.123456Z",
+    "queue_position": 2,
+    "total_waiting": 4,
+    "course": {
+      "course_id": "cse-301-a",
+      "code": "CSE 301",
+      "title": "Database Systems",
+      "department": "CSE",
+      "semester": "Fall 2026",
+      "instructor": "Dr. Rahman",
+      "credits": 3,
+      "capacity": 40,
+      "available_seats": 0,
+      "is_mandatory": true,
+      "level": "Undergraduate",
+      "description": "Relational database concepts.",
+      "prerequisites": ["CSE 201"],
+      "section": "A",
+      "schedule": []
+    }
+  }
+}
+```
+
+Join locks the section and recalculates availability from approved
+registrations. The cached `courses.available_seats` value is ignored. The
+section must be full, the student must have no registration for that offering,
+and the prerequisite and candidate schedule-conflict guards must pass. An
+active duplicate is rejected. A removed or expired row is reactivated with a
+new join time at the back of the queue; a promoted row cannot rejoin.
+
+`GET` returns the authenticated student's active entries with current
+positions and totals. The database calculates first-come order from
+`joined_at`, then the UUID as a deterministic tie-breaker. Positions are not
+stored, so leaving or later promotion changes subsequent positions on the next
+read. `DELETE` soft-removes an owned active entry and returns its previous
+position, UTC removal time, and remaining active count.
+
+| HTTP | Error code | Condition |
+|---|---|---|
+| `404` | `STUDENT_PROFILE_NOT_FOUND` | The authenticated student account has no profile |
+| `404` | `SECTION_NOT_FOUND` | The join target does not exist |
+| `404` | `WAITLIST_ENTRY_NOT_FOUND` | No owned entry exists for the leave target |
+| `409` | `SECTION_NOT_FULL` | A direct-registration seat is currently available |
+| `409` | `DUPLICATE_REGISTRATION` | The student already has a registration row for the section |
+| `409` | `DUPLICATE_WAITLIST_ENTRY` | The student already has an active entry |
+| `409` | `WAITLIST_ENTRY_NOT_JOINABLE` | The existing entry was already promoted |
+| `409` | `WAITLIST_ENTRY_NOT_ACTIVE` | The leave target is no longer active |
+| `409` | `SCHEDULE_CONFLICT` | The target overlaps an active registration |
+| `422` | `PREREQUISITES_NOT_MET` | Current prerequisite rules are not satisfied |
+| `500` | `DATABASE_OPERATION_FAILED` | The queue read or transaction failed safely |
+
+PostgreSQL serializes same-section joins and leaves with
+`FOR UPDATE OF courses`; the student/section unique constraint provides final
+duplicate protection. SQLite uses an in-process mutex for local and test
+writes. Automatic first-eligible promotion is intentionally left to the next
+workflow, which will reuse this lock order and the safe-seat allocator. No
+table, column, migration, or database reset is required.
+
 ## Status Codes
 
 | Status Code | Meaning |
@@ -538,11 +626,11 @@ for calling the safe-seat allocator and rechecking capacity.
 
 ## Database Constraint Errors
 
-Known duplicate course IDs, code/semester/section offerings, and student
-section selections return `409` with `DUPLICATE_COURSE_ID`,
-`DUPLICATE_COURSE_SECTION`, or `DUPLICATE_SELECTION`. Invalid credits,
-capacity, available seats, or required text values return `422` with a
-field-specific code and message.
+Known duplicate course IDs, code/semester/section offerings, student section
+selections, and waiting-list entries return `409` with
+`DUPLICATE_COURSE_ID`, `DUPLICATE_COURSE_SECTION`, `DUPLICATE_SELECTION`, or
+`DUPLICATE_WAITLIST_ENTRY`. Invalid credits, capacity, available seats, or
+required text values return `422` with a field-specific code and message.
 
 Unexpected integrity errors use `DATABASE_CONSTRAINT_VIOLATION`. Repository
 failures use `DATABASE_OPERATION_FAILED`. Neither response exposes raw

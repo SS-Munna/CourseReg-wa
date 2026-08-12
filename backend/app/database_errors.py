@@ -126,6 +126,11 @@ CONSTRAINT_RESPONSES = {
             "This course section is already selected or registered."
         ),
     ),
+    "uq_waitlist_student_section": ConstraintResponse(
+        status_code=status.HTTP_409_CONFLICT,
+        code="DUPLICATE_WAITLIST_ENTRY",
+        message="This course section is already on the student's waiting list.",
+    ),
 }
 
 
@@ -148,6 +153,10 @@ SQLITE_CONSTRAINT_SIGNATURES = {
         "unique constraint failed: registrations.student_id, "
         "registrations.section_id"
     ): "uq_registration_student_section",
+    (
+        "unique constraint failed: waitlist_entries.student_id, "
+        "waitlist_entries.section_id"
+    ): "uq_waitlist_student_section",
 }
 
 
