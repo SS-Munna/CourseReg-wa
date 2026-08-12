@@ -4,6 +4,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AuthProvider } from '../context/AuthContext'
 import AdminDashboardPage from '../pages/AdminDashboardPage'
+
+vi.mock('../components/AuditLogPanel', () => ({
+  default: () => <div>Audit activity panel</div>,
+}))
 import {
   createDepartment,
   createProgram,

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 
+import NotificationCenter from '../components/NotificationCenter'
 import { useAuth } from '../context/AuthContext'
 import { useTheme } from '../context/ThemeContext'
 
@@ -65,8 +66,15 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <a className="catalogue-link" href="#admin-create-staff">
                 Provision staff
               </a>
+              {role === 'system-admin' && (
+                <a className="catalogue-link" href="#audit-log">
+                  Audit log
+                </a>
+              )}
             </nav>
           )}
+
+          {user && <NotificationCenter />}
 
           <button
             className="theme-toggle"

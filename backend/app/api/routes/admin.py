@@ -1,3 +1,4 @@
+import json
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, status
@@ -11,7 +12,9 @@ from app.api.errors import (
 from app.authorization import UserRole, require_roles
 from app.database import get_db
 from app.models.advisor import Advisor
+from app.models.audit_log import AuditLog
 from app.models.department import Department
+from app.models.notification import Notification
 from app.models.program import Program
 from app.models.student import Student
 from app.models.user import User
@@ -56,6 +59,48 @@ VISIBLE_TO_DEPARTMENT_ADMIN = (
     UserRole.STUDENT.value,
     UserRole.ADVISOR.value,
 )
+
+
+def _record_audit(
+    db: Session,
+    *,
+    actor_user_id: UUID,
+    action_type: str,
+    entity_type: str,
+    entity_id: UUID,
+    details: dict | None = None,
+) -> None:
+    db.add(
+        AuditLog(
+            user_id=actor_user_id,
+            action_type=action_type,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            action_details=(
+                json.dumps(details, sort_keys=True, default=str)
+                if details is not None
+                else None
+            ),
+        )
+    )
+
+
+def _notify_user(
+    db: Session,
+    *,
+    user_id: UUID,
+    notification_type: str,
+    title: str,
+    message: str,
+) -> None:
+    db.add(
+        Notification(
+            user_id=user_id,
+            notification_type=notification_type,
+            title=title,
+            message=message,
+        )
+    )
 
 
 def _user_data(user: User) -> AdminUserData:
@@ -295,7 +340,7 @@ def list_departments(
 )
 def create_department(
     payload: CreateDepartmentRequest,
-    _current_user: User = Depends(
+    current_user: User = Depends(
         require_roles(UserRole.SYSTEM_ADMIN)
     ),
     db: Session = Depends(get_db),
@@ -321,6 +366,15 @@ def create_department(
         department_name=payload.name.strip(),
     )
     db.add(department)
+    db.flush()
+    _record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action_type="department_created",
+        entity_type="department",
+        entity_id=department.id,
+        details={"code": department.department_code},
+    )
     db.commit()
     db.refresh(department)
 
@@ -387,7 +441,7 @@ def list_programs(
 )
 def create_program(
     payload: CreateProgramRequest,
-    _current_user: User = Depends(
+    current_user: User = Depends(
         require_roles(UserRole.SYSTEM_ADMIN)
     ),
     db: Session = Depends(get_db),
@@ -427,6 +481,18 @@ def create_program(
         maximum_credit=payload.maximum_credit,
     )
     db.add(program)
+    db.flush()
+    _record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action_type="program_created",
+        entity_type="program",
+        entity_id=program.id,
+        details={
+            "code": program.program_code,
+            "department_id": department.id,
+        },
+    )
     db.commit()
     db.refresh(program)
 
@@ -497,7 +563,7 @@ def list_advisor_options(
 def create_student_profile(
     payload: CreateStudentProfileRequest,
     user_id: UUID = Path(...),
-    _current_user: User = Depends(require_admin),
+    current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     user = _target_or_404(db, user_id)
@@ -578,6 +644,29 @@ def create_student_profile(
         academic_status="active",
     )
     db.add(student)
+    db.flush()
+    _record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action_type="student_profile_linked",
+        entity_type="student",
+        entity_id=student.id,
+        details={
+            "user_id": user.id,
+            "program_id": program.id,
+            "advisor_id": advisor.id,
+        },
+    )
+    _notify_user(
+        db,
+        user_id=user.id,
+        notification_type="student_profile_linked",
+        title="Academic profile ready",
+        message=(
+            "Your academic profile is linked. Course registration actions "
+            "are now available for your account."
+        ),
+    )
     db.commit()
     db.refresh(student)
 
@@ -685,6 +774,27 @@ def create_staff_account(
             )
         )
 
+    _record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action_type="staff_account_created",
+        entity_type="user",
+        entity_id=user.id,
+        details={
+            "role": user.role,
+            "account_status": user.account_status,
+        },
+    )
+    _notify_user(
+        db,
+        user_id=user.id,
+        notification_type="staff_account_created",
+        title="CoursePilot staff account created",
+        message=(
+            "Your CoursePilot staff account has been created with "
+            f"{user.role} access. Current status: {user.account_status}."
+        ),
+    )
     db.commit()
     db.refresh(user)
 
@@ -712,7 +822,30 @@ def update_user_access(
     target = _target_or_404(db, user_id)
     _ensure_can_manage(current_user, target)
 
+    previous_status = target.account_status
     target.account_status = payload.account_status
+    _record_audit(
+        db,
+        actor_user_id=current_user.id,
+        action_type="account_access_updated",
+        entity_type="user",
+        entity_id=target.id,
+        details={
+            "previous_status": previous_status,
+            "account_status": target.account_status,
+            "role": target.role,
+        },
+    )
+    _notify_user(
+        db,
+        user_id=target.id,
+        notification_type="account_access_updated",
+        title="Account access updated",
+        message=(
+            "Your CoursePilot account status changed from "
+            f"{previous_status} to {target.account_status}."
+        ),
+    )
     db.commit()
     db.refresh(target)
 

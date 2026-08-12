@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 
+import AuditLogPanel from '../../components/AuditLogPanel'
 import { useAuth } from '../../context/AuthContext'
 import {
   createDepartment,
@@ -1091,6 +1092,8 @@ const saveProgram = async (
   )}
 </aside>
       </section>
+
+      {isSystemAdmin && <AuditLogPanel />}
     </main>
   )
 }
