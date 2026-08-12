@@ -107,6 +107,12 @@ missing section, an available direct-registration seat, an existing
 registration, a duplicate or non-active waiting-list record, unmet
 prerequisites, schedule conflicts, and safe repository failures.
 
+Automatic promotion is an internal service for seat-releasing workflows, not a
+new public route. It returns whether one student was promoted or whether the
+section was full, the queue was empty, or no active candidate remained
+eligible. The later course-drop API will invoke this operation after releasing
+a seat.
+
 ## Repository Design
 
 The course repository uses SQLAlchemy queries to retrieve and filter course
@@ -167,6 +173,17 @@ by join time and UUID. Removed and expired rows can rejoin at the back;
 promoted rows cannot. Leaves are soft state transitions, so history remains
 available while active positions shift without a bulk renumbering write.
 SQLite uses a process mutex and PostgreSQL uses `FOR UPDATE OF courses`.
+
+The promotion repository follows the same section-first order, then locks the
+active queue by join time and UUID. It rechecks duplicate and completed-course
+rules, the program maximum, prerequisites, and schedule conflicts. Ineligible
+entries become expired and processing continues in FIFO order. The first
+eligible entry receives an approved registration through the shared locked
+seat transition; its waitlist status, notification, and audit event are flushed
+and committed with that registration. One invocation fills at most one seat,
+and every failure rolls the compound transaction back. A shared re-entrant
+SQLite mutex now covers submission, waitlist mutation, seat allocation, and
+promotion while PostgreSQL uses the corresponding section row lock.
 
 Supported filters:
 
@@ -283,6 +300,15 @@ registration protection, prerequisites, schedule conflicts, ownership and
 role isolation, safe errors, and rollback. Two-thread tests prove duplicate
 joins create one entry and concurrent students receive distinct positions;
 PostgreSQL compilation verifies the section lock and window queue query.
+
+Automatic-promotion tests verify the four-record atomic success path, live
+capacity, FIFO selection, position shifts, one-seat processing, prerequisite,
+schedule, completed-course, duplicate, and maximum-credit revalidation,
+ineligible-entry expiration, empty/full/no-eligible outcomes, missing sections,
+safe dependency failures, and complete rollback. A two-thread test proves that
+concurrent processing creates exactly one approval, promotion, notification,
+and audit event for the final seat; PostgreSQL compilation verifies section and
+FIFO entry row locks.
 
 Startup-migration tests verify the legacy PostgreSQL integer-to-UUID path,
 the already-current UUID path, fresh-database behavior, safe rejection of an

@@ -606,9 +606,32 @@ position, UTC removal time, and remaining active count.
 PostgreSQL serializes same-section joins and leaves with
 `FOR UPDATE OF courses`; the student/section unique constraint provides final
 duplicate protection. SQLite uses an in-process mutex for local and test
-writes. Automatic first-eligible promotion is intentionally left to the next
-workflow, which will reuse this lock order and the safe-seat allocator. No
-table, column, migration, or database reset is required.
+writes. No table, column, migration, or database reset is required.
+
+## Automatic Waiting-List Promotion Service Contract
+
+Issue #29 adds no public HTTP route. It provides the internal operation that a
+seat-releasing workflow calls with one public `course_id`. One call processes
+at most one newly available seat and returns:
+
+- `outcome`: `promoted`, `section_full`, `queue_empty`, or
+  `no_eligible_student`.
+- Section capacity, live approved enrollment, and remaining seats.
+- IDs of any FIFO entries expired because their eligibility changed.
+- On success, the student, waitlist, registration, notification, and audit IDs,
+  both final states, and the shared UTC promotion time.
+
+Promotion locks the section and active queue, then revalidates exact and
+normalized-course duplicates, successful prior completion, the prospective
+program maximum, prerequisites, and schedule conflicts. Ineligible entries are
+expired and skipped. The first eligible student receives an approved
+registration through the same locked capacity transition used by direct seat
+allocation. The waitlist update, notification, and audit event share that
+transaction, so callers never observe a partial promotion.
+
+The future course-drop route will invoke this service when its own transaction
+releases a seat. Repository failures roll back all state and remain typed for a
+future HTTP boundary to translate into the standard safe database error.
 
 ## Status Codes
 

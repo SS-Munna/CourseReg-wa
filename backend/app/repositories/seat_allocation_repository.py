@@ -1,5 +1,3 @@
-from contextlib import nullcontext
-from threading import RLock
 from uuid import UUID
 
 from sqlalchemy import func
@@ -7,10 +5,8 @@ from sqlalchemy.orm import Session
 
 from app.models.course import Course
 from app.models.registration import Registration, RegistrationStatus
+from app.repositories.section_transaction import section_transaction_guard
 from app.schemas.seat_allocation import SeatAllocationResult
-
-
-_SQLITE_ALLOCATION_MUTEX = RLock()
 
 
 class SeatAllocationRepositoryError(RuntimeError):
@@ -112,13 +108,53 @@ def _allocation_result(
     )
 
 
-def _allocation_guard(db: Session):
-    """Provide SQLite's local equivalent of the section-row lock."""
+def approve_pending_registration_in_locked_section(
+    *,
+    registration: Registration,
+    course: Course,
+    approved_enrollment: int,
+) -> SeatAllocationResult:
+    """Apply the capacity-safe state transition inside an existing lock.
 
-    if db.get_bind().dialect.name == "sqlite":
-        return _SQLITE_ALLOCATION_MUTEX
+    The caller must hold the course-section transaction lock and remains
+    responsible for flushing, committing, or rolling back the transaction.
+    This lets compound workflows, such as waiting-list promotion, include the
+    registration transition and their related records in one atomic commit.
+    """
 
-    return nullcontext()
+    if registration.section_id != course.id:
+        raise SeatAllocationRepositoryError(
+            "The registration section changed during allocation."
+        )
+
+    if (
+        registration.registration_status
+        == RegistrationStatus.APPROVED.value
+    ):
+        return _allocation_result(
+            registration=registration,
+            course=course,
+            approved_enrollment=approved_enrollment,
+            newly_allocated=False,
+        )
+
+    if registration.registration_status != RegistrationStatus.PENDING.value:
+        raise RegistrationNotPendingError(registration.registration_status)
+
+    if approved_enrollment >= course.capacity:
+        raise SectionFullError(
+            course_id=course.course_id,
+            capacity=course.capacity,
+            approved_enrollment=approved_enrollment,
+        )
+
+    registration.registration_status = RegistrationStatus.APPROVED.value
+    return _allocation_result(
+        registration=registration,
+        course=course,
+        approved_enrollment=approved_enrollment + 1,
+        newly_allocated=True,
+    )
 
 
 def _allocate_registration_seat(
@@ -143,55 +179,16 @@ def _allocate_registration_seat(
         if registration is None:
             raise RegistrationNotFoundError(registration_id)
 
-        if registration.section_id != course.id:
-            raise SeatAllocationRepositoryError(
-                "The registration section changed during allocation."
-            )
-
         approved_enrollment = _approved_enrollment(
             db,
             section_id=course.id,
         )
-
-        if (
-            registration.registration_status
-            == RegistrationStatus.APPROVED.value
-        ):
-            result = _allocation_result(
-                registration=registration,
-                course=course,
-                approved_enrollment=approved_enrollment,
-                newly_allocated=False,
-            )
-            db.commit()
-            return result
-
-        if (
-            registration.registration_status
-            != RegistrationStatus.PENDING.value
-        ):
-            raise RegistrationNotPendingError(
-                registration.registration_status
-            )
-
-        if approved_enrollment >= course.capacity:
-            raise SectionFullError(
-                course_id=course.course_id,
-                capacity=course.capacity,
-                approved_enrollment=approved_enrollment,
-            )
-
-        registration.registration_status = (
-            RegistrationStatus.APPROVED.value
-        )
-        db.flush()
-
-        result = _allocation_result(
+        result = approve_pending_registration_in_locked_section(
             registration=registration,
             course=course,
-            approved_enrollment=approved_enrollment + 1,
-            newly_allocated=True,
+            approved_enrollment=approved_enrollment,
         )
+        db.flush()
         db.commit()
         return result
 
@@ -225,7 +222,7 @@ def allocate_registration_seat(
     committed.
     """
 
-    with _allocation_guard(db):
+    with section_transaction_guard(db):
         return _allocate_registration_seat(
             db,
             registration_id=registration_id,

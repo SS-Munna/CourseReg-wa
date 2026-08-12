@@ -233,6 +233,35 @@ SQLite and PostgreSQL duplicate signatures map to
 The workflow reuses the existing waitlist table, status values, unique
 constraint, and queue index. It introduces no schema migration or reset.
 
+## Automatic Waiting-List Promotion Transaction
+
+A seat-releasing workflow calls one promotion operation for the affected
+section. The transaction follows this order:
+
+1. Lock the `courses` row and recount approved registrations.
+2. Stop without mutation if the section is full; otherwise lock active
+   `waitlist_entries` in `joined_at`, UUID order.
+3. Revalidate each candidate's duplicate and completed-course state, program
+   maximum, prerequisites, and schedule. Mark an ineligible row `expired` and
+   continue to the next FIFO row.
+4. Insert a `pending` registration for the first eligible student and apply the
+   shared capacity-safe transition to `approved` inside the existing lock.
+5. Mark the waiting-list row `promoted`, insert one `notifications` row, insert
+   one `audit_logs` row, flush all records, and commit once.
+
+The audit entity is the promoted waitlist UUID and the related registration ID
+is stored in safe JSON details. The notification belongs to the affected
+student's user account. Queue positions remain derived, so expiring or
+promoting entries shifts later positions without renumbering rows.
+
+PostgreSQL uses `FOR UPDATE OF courses` followed by
+`FOR UPDATE OF waitlist_entries`. Same-section workers therefore serialize and
+recount enrollment before choosing a candidate. SQLite uses one shared
+re-entrant in-process mutex across section-sensitive repositories. Any error
+rolls back the registration, waitlist transition, notification, audit event,
+and preceding expirations together. Existing tables, status values, columns,
+constraints, and indexes support this workflow without a migration or reset.
+
 ## Prerequisite Validation
 
 Normalized rules in `course_prerequisites` are authoritative for minimum-grade

@@ -1,7 +1,5 @@
 from collections import defaultdict
-from contextlib import nullcontext
 from datetime import datetime, timezone
-from threading import RLock
 from uuid import UUID
 
 from sqlalchemy import func
@@ -27,6 +25,7 @@ from app.repositories.schedule_conflict_repository import (
     ScheduleConflictRepositoryError,
     require_no_schedule_conflicts,
 )
+from app.repositories.section_transaction import section_transaction_guard
 from app.schemas.registration_submission import (
     CompletedCourseConflict,
     DuplicateCourseSelection,
@@ -42,9 +41,6 @@ ACTIVE_SUBMISSION_STATUSES = (
     RegistrationStatus.PENDING.value,
     RegistrationStatus.APPROVED.value,
 )
-_SQLITE_SUBMISSION_MUTEX = RLock()
-
-
 class RegistrationSubmissionRepositoryError(RuntimeError):
     """Raised when a final submission cannot be persisted safely."""
 
@@ -114,13 +110,6 @@ def locked_draft_registrations_query(
         .populate_existing()
         .with_for_update(of=Registration)
     )
-
-
-def _submission_guard(db: Session):
-    if db.get_bind().dialect.name == "sqlite":
-        return _SQLITE_SUBMISSION_MUTEX
-
-    return nullcontext()
 
 
 def _submission_course(
@@ -470,7 +459,7 @@ def submit_final_registration(
 ) -> FinalRegistrationSubmission:
     """Validate and atomically move every current draft to pending."""
 
-    with _submission_guard(db):
+    with section_transaction_guard(db):
         return _submit_final_registration(
             db,
             student_id=student_id,

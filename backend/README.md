@@ -362,9 +362,10 @@ cross-process production guarantee.
 The result reports the registration and section identifiers, whether a new
 allocation occurred, capacity, approved enrollment, and remaining seats.
 Full-section and invalid-state errors remain typed for future advisor and
-waiting-list APIs to translate into safe responses. No public allocation
-endpoint is introduced in this issue; advisor approval and automatic
-waitlist promotion will reuse this transaction boundary.
+waiting-list workflows to translate into safe responses. The lower-level
+locked transition can also participate in a larger transaction, which lets
+automatic waitlist promotion persist its related records atomically. No
+public allocation endpoint is introduced.
 
 ## Final registration submission API
 
@@ -433,10 +434,34 @@ Later reads therefore show shifted positions automatically.
 PostgreSQL serializes same-section joins and leaves with
 `FOR UPDATE OF courses`. Join times are assigned while that lock is held, and
 the named student/section uniqueness constraint remains the final duplicate
-authority. SQLite local and test transactions use an in-process mutex because
-SQLite omits row locks. Automatic seat promotion remains the next workflow and
-will reuse the section-first lock order and safe-seat allocator. The existing
-waitlist table already supports this API, so no migration or reset is needed.
+authority. SQLite local and test transactions use the same in-process section
+mutex as submission, seat allocation, and promotion because SQLite omits row
+locks. The existing waitlist table supports this API without a migration or
+reset.
+
+## Automatic waiting-list promotion
+
+`promote_next_waitlisted_student` is the internal operation for a workflow that
+releases one section seat. It locks the section, recounts approved enrollment,
+then locks active entries ordered by `joined_at` and UUID. One invocation
+promotes at most one student, so a one-seat event cannot over-allocate even if
+multiple workers process the same section concurrently.
+
+Eligibility is revalidated at promotion time. A student is skipped if the
+course or an equivalent normalized course is already registered or completed,
+the added credits would exceed the program maximum, prerequisites are no
+longer met, or the course now conflicts with an active schedule. Skipped rows
+become `expired`, after which the next eligible FIFO entry is considered.
+
+A successful promotion creates an `approved` registration through the shared
+capacity-safe transition, marks the waitlist row `promoted`, creates a student
+notification, and creates an audit log. The registration and waitlist
+transition use one UTC timestamp, and all four writes share one atomic commit;
+a failure rolls back every record. Results also distinguish a full section, an
+empty queue, and a queue with no eligible student. This is a repository service
+rather than a new public endpoint; the course-drop workflow will call it when a
+seat is released. Existing tables already contain every required field, so no
+migration or database reset is needed.
 
 ## Course data integrity
 
@@ -539,8 +564,10 @@ and are available through the protected conflict-validation API. Pending
 registrations can be approved through the reusable safe-seat allocator. The
 final-submission API revalidates and moves owned drafts to `pending`. Advisor
 review routes remain separate workflow features. The protected waiting-list
-API now joins, lists, and leaves full-section queues; automatic promotion,
-notifications, and audit-log automation remain separate workflow features.
+API joins, lists, and leaves full-section queues. The automatic promotion
+service now creates the approved registration, promoted queue state,
+notification, and audit record atomically. Advisor review and course-drop APIs
+remain separate workflow features.
 
 ## Prerequisite and completed-course models
 
