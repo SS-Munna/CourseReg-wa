@@ -16,9 +16,12 @@ the same final seat. Final submission revalidates the student's current load
 and atomically moves only valid draft selections to `pending` advisor review.
 The dashboard now exposes that full workflow through an interactive selected-course
 panel, live credit summary, actionable validation messages, and a final review
-dialog before submission.
-Eligible students can join or leave full-section waiting lists and see their
-live first-come, first-served queue positions. When a seat is released, the
+dialog before submission. It also includes student-facing registration-status
+and waiting-list panels, so pending, approved, rejected, dropped, and waitlisted
+outcomes, advisor comments, and live queue positions are visible in one place.
+Eligible students can join or leave full-section waiting lists directly from
+the course catalogue and see their live first-come, first-served queue positions.
+When a seat is released, the
 promotion service can atomically approve the first still-eligible student and
 record the queue transition, notification, and audit event. Assigned advisors
 can list and inspect submitted requests, then atomically approve the whole load
@@ -51,6 +54,7 @@ React Student Dashboard -> frontend API services -> FastAPI endpoints -> SQLAlch
 3. Review selected sections, schedules, and the active credit-load summary; remove or replace drafts as needed.
 4. Open final review. The application rechecks credit limits and schedule conflicts and displays any prerequisite or availability problem returned by the API.
 5. Submit the valid selection. Draft registrations move to `pending` for advisor review.
+6. Monitor advisor decisions, comments, and waiting-list positions from the dashboard; full sections can be joined or left from the waiting-list workflow.
 
 ## Main API Endpoints
 
@@ -196,13 +200,17 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - frontend/src/components/CourseStats/
 - frontend/src/components/RegistrationWorkspace/
 - frontend/src/components/RegistrationReviewModal/
+- frontend/src/components/RegistrationStatusPanel/
+- frontend/src/components/WaitlistPanel/
 - frontend/src/services/apiClient.ts
 - frontend/src/services/courseApi.ts
 - frontend/src/services/dashboardApi.ts
 - frontend/src/services/selectionApi.ts
+- frontend/src/services/waitlistApi.ts
 - frontend/src/types/course.ts
 - frontend/src/types/dashboard.ts
 - frontend/src/types/selection.ts
+- frontend/src/types/waitlist.ts
 
 ## Notes
 

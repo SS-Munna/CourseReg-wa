@@ -4,25 +4,57 @@ type CourseCardProps = {
   course: Course
   onViewDetails: (course: Course) => void
   onAddToSelection: (course: Course) => void
+  onJoinWaitlist?: (course: Course) => void
   isSelected: boolean
+  isWaitlisted?: boolean
   selectionBusy: boolean
   selectionLoading: boolean
   selectionDisabledReason: string
+  waitlistBusy?: boolean
+  waitlistLoading?: boolean
+  waitlistDisabledReason?: string
 }
 
 function CourseCard({
   course,
   onViewDetails,
   onAddToSelection,
+  onJoinWaitlist,
   isSelected,
+  isWaitlisted = false,
   selectionBusy,
   selectionLoading,
   selectionDisabledReason,
+  waitlistBusy = false,
+  waitlistLoading = false,
+  waitlistDisabledReason = '',
 }: CourseCardProps) {
   const seatPercentage = Math.max(
     0,
     Math.min(100, (course.available_seats / course.capacity) * 100),
   )
+  const waitlistMode =
+    course.available_seats === 0 && !isSelected && Boolean(onJoinWaitlist)
+  const actionReason = waitlistMode
+    ? waitlistDisabledReason
+    : selectionDisabledReason
+  const actionBusy = waitlistMode ? waitlistBusy : selectionBusy
+  const actionLoading = waitlistMode ? waitlistLoading : selectionLoading
+  const actionDisabled = waitlistMode
+    ? isWaitlisted || actionBusy || Boolean(actionReason)
+    : isSelected || isWaitlisted || actionBusy || Boolean(actionReason)
+
+  const actionLabel = isWaitlisted
+    ? 'Waitlisted'
+    : waitlistMode
+      ? actionLoading
+        ? 'Joining…'
+        : 'Join waitlist'
+      : isSelected
+        ? 'Selected'
+        : actionLoading
+          ? 'Adding…'
+          : 'Add to selection'
 
   return (
     <article className="course-card">
@@ -94,27 +126,25 @@ function CourseCard({
           </button>
         </div>
         <button
-          className="selection-button"
+          className={waitlistMode ? 'selection-button waitlist-button' : 'selection-button'}
           type="button"
-          onClick={() => onAddToSelection(course)}
-          disabled={
-            isSelected || selectionBusy || Boolean(selectionDisabledReason)
+          onClick={() =>
+            waitlistMode && onJoinWaitlist
+              ? onJoinWaitlist(course)
+              : onAddToSelection(course)
           }
+          disabled={actionDisabled}
           title={
-            selectionDisabledReason ||
-            (selectionBusy ? 'Another selection update is in progress.' : undefined)
+            actionReason ||
+            (actionBusy ? 'Another registration update is in progress.' : undefined)
           }
         >
-          {isSelected
-            ? 'Selected'
-            : selectionLoading
-              ? 'Adding…'
-              : 'Add to selection'}
+          {actionLabel}
         </button>
       </div>
 
-      {!isSelected && selectionDisabledReason && (
-        <small className="selection-help">{selectionDisabledReason}</small>
+      {!isSelected && !isWaitlisted && actionReason && (
+        <small className="selection-help">{actionReason}</small>
       )}
     </article>
   )

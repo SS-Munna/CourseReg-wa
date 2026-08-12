@@ -28,17 +28,51 @@ afterEach(() => {
 
 describe('dashboard API', () => {
   it('summarizes every visible registration state and active credits', () => {
+    const baseRegistration = {
+      submitted_at: '2026-08-12T10:00:00Z',
+      reviewed_at: null,
+      reviewed_by_advisor_id: null,
+      advisor_comment: null,
+      updated_at: '2026-08-12T10:00:00Z',
+      course,
+      drop_eligibility: {
+        eligible: false,
+        drop_deadline: '2026-10-15',
+        reason: 'registration_not_approved' as const,
+        message: 'Only an approved registration can be dropped.',
+      },
+    }
+    const waitlistCourse = {
+      ...course,
+      available_seats: 0,
+    }
     const overview: RegistrationOverview = {
       registrations: [
-        { registration_id: '1', registration_status: 'draft', course },
-        { registration_id: '2', registration_status: 'pending', course },
-        { registration_id: '3', registration_status: 'approved', course },
-        { registration_id: '4', registration_status: 'rejected', course },
-        { registration_id: '5', registration_status: 'dropped', course },
+        { ...baseRegistration, registration_id: '1', registration_status: 'draft' },
+        { ...baseRegistration, registration_id: '2', registration_status: 'pending' },
+        { ...baseRegistration, registration_id: '3', registration_status: 'approved' },
+        { ...baseRegistration, registration_id: '4', registration_status: 'rejected' },
+        { ...baseRegistration, registration_id: '5', registration_status: 'dropped' },
       ],
       waitlist_entries: [
-        { registration_status: 'waitlisted' },
-        { registration_status: 'waitlisted' },
+        {
+          waitlist_entry_id: 'waitlist-1',
+          waitlist_status: 'active',
+          registration_status: 'waitlisted',
+          joined_at: '2026-08-12T11:00:00Z',
+          queue_position: 1,
+          total_waiting: 2,
+          course: waitlistCourse,
+        },
+        {
+          waitlist_entry_id: 'waitlist-2',
+          waitlist_status: 'active',
+          registration_status: 'waitlisted',
+          joined_at: '2026-08-12T11:01:00Z',
+          queue_position: 2,
+          total_waiting: 2,
+          course: waitlistCourse,
+        },
       ],
     }
 
