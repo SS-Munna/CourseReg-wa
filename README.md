@@ -280,3 +280,16 @@ system-administrator audit feed at `/api/admin/audit-logs`.
   waiting.
 - System administrators can review recent audit events from the administration
   workspace. Department administrators cannot read the global audit feed.
+
+## Backend and API Regression Tests
+
+Run the complete backend suite from `backend/` with:
+
+    python -m unittest discover -s tests
+
+The suite uses temporary SQLite databases for API integration tests, so it does
+not modify the local development database or require the deployed PostgreSQL
+instance. It covers authentication and role boundaries, core registration and
+waitlist workflows, advisor/admin APIs, notification and audit access, shared
+error contracts, persistence constraints, and a cross-route API surface
+regression matrix. See `backend/TESTING.md` for focused and verbose commands.
