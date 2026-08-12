@@ -47,7 +47,7 @@ transaction.
 
 ## Current Feature Flow
 
-React Student Dashboard -> frontend API services -> FastAPI endpoints -> SQLAlchemy repositories -> registration and course tables -> shared JSON responses -> dashboard summaries and course cards
+Role-aware React workspaces -> frontend API services -> FastAPI endpoints -> SQLAlchemy repositories -> registration and course tables -> shared JSON responses -> student registration and advisor review workflows
 
 ## Student Registration Workflow
 
@@ -58,6 +58,18 @@ React Student Dashboard -> frontend API services -> FastAPI endpoints -> SQLAlch
 5. Submit the valid selection. Draft registrations move to `pending` for advisor review.
 6. Monitor advisor decisions, comments, and waiting-list positions from the dashboard; full sections can be joined or left from the waiting-list workflow.
 7. Review approved current-semester courses in the weekly timetable or switch to the detailed list view for section, instructor, room, and meeting-time information.
+
+
+## Role-Aware Access and Advisor Review
+
+- CoursePilot uses one login page for all existing accounts and routes the authenticated user by role.
+- Public self-registration creates `student` accounts only; staff and administrative roles are not selectable from the public sign-up form.
+- Only accounts with `account_status = active` can sign in or continue using an existing access token.
+- Students open the student registration dashboard and can jump directly to the course catalogue from the primary dashboard action.
+- Advisors open a dedicated review queue containing only registration requests assigned to their advisor profile. They can inspect course, prerequisite, credit-load, and schedule information before approving or rejecting a pending request.
+- Rejections require a reason. Advisor decisions continue to use the backend notification and audit-log workflow.
+- Department and system administrator accounts are kept out of the student workspace; their management interface is handled by the department-administration feature.
+
 
 ## Main API Endpoints
 
@@ -197,6 +209,8 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 ## Current Frontend Structure
 
 - frontend/src/pages/StudentDashboardPage/
+- frontend/src/pages/AdvisorDashboardPage/
+- frontend/src/pages/RoleWorkspacePage/
 - frontend/src/components/CourseCard/
 - frontend/src/components/CourseDetailsModal/
 - frontend/src/components/CourseFilters/
@@ -207,10 +221,12 @@ The same SQLAlchemy structure can later connect to PostgreSQL by changing DATABA
 - frontend/src/components/ApprovedSchedule/
 - frontend/src/components/WaitlistPanel/
 - frontend/src/services/apiClient.ts
+- frontend/src/services/advisorApi.ts
 - frontend/src/services/courseApi.ts
 - frontend/src/services/dashboardApi.ts
 - frontend/src/services/selectionApi.ts
 - frontend/src/services/waitlistApi.ts
+- frontend/src/types/advisor.ts
 - frontend/src/types/course.ts
 - frontend/src/types/dashboard.ts
 - frontend/src/types/selection.ts

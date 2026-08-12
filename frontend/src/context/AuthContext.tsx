@@ -8,10 +8,11 @@ import {
 import type { ReactNode } from 'react'
 
 import {
-  loginStudent,
+  login as loginUser,
   registerStudent,
 } from '../services/authApi'
 import type {
+  AuthRole,
   AuthUser,
   LoginPayload,
   RegisterPayload,
@@ -30,19 +31,53 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 const USER_STORAGE_KEY = 'coursepilot_user'
 const TOKEN_STORAGE_KEY = 'coursepilot_token'
+const AUTH_ROLES: AuthRole[] = [
+  'student',
+  'advisor',
+  'department-admin',
+  'system-admin',
+]
+
+function parseStoredUser(value: string | null): AuthUser | null {
+  if (!value) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<AuthUser>
+
+    if (
+      typeof parsed.id !== 'string' ||
+      typeof parsed.name !== 'string' ||
+      typeof parsed.email !== 'string' ||
+      typeof parsed.role !== 'string' ||
+      !AUTH_ROLES.includes(parsed.role as AuthRole)
+    ) {
+      return null
+    }
+
+    return parsed as AuthUser
+  } catch {
+    return null
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null)
   const [token, setToken] = useState<string | null>(null)
 
   useEffect(() => {
-    const savedUser = localStorage.getItem(USER_STORAGE_KEY)
+    const savedUser = parseStoredUser(localStorage.getItem(USER_STORAGE_KEY))
     const savedToken = localStorage.getItem(TOKEN_STORAGE_KEY)
 
     if (savedUser && savedToken) {
-      setUser(JSON.parse(savedUser))
+      setUser(savedUser)
       setToken(savedToken)
+      return
     }
+
+    localStorage.removeItem(USER_STORAGE_KEY)
+    localStorage.removeItem(TOKEN_STORAGE_KEY)
   }, [])
 
   const saveSession = (nextUser: AuthUser, nextToken: string) => {
@@ -54,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const login = async (payload: LoginPayload) => {
-    const response = await loginStudent(payload)
+    const response = await loginUser(payload)
     saveSession(response.data.user, response.data.token)
   }
 

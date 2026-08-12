@@ -83,6 +83,12 @@ def get_current_user(
             code="TOKEN_USER_NOT_FOUND",
         )
 
+    if getattr(user, "account_status", "active") != "active":
+        raise forbidden_exception(
+            "This account is not active.",
+            code="ACCOUNT_NOT_ACTIVE",
+        )
+
     return user
 
 

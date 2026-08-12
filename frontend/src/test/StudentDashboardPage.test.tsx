@@ -221,6 +221,7 @@ describe('StudentDashboardPage', () => {
     )
 
     expect(await screen.findByText('Welcome back, Samira')).toBeVisible()
+    expect(screen.getByRole('link', { name: 'Browse & add courses' })).toHaveAttribute('href', '#catalogue')
     expect(await screen.findByText('Registration open')).toBeVisible()
     const catalogueSection = await screen.findByRole('region', {
       name: 'Course catalogue',

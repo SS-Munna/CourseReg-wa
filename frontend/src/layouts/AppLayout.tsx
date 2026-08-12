@@ -7,10 +7,18 @@ type AppLayoutProps = {
   children: ReactNode
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  student: 'Student account',
+  advisor: 'Advisor account',
+  'department-admin': 'Department admin',
+  'system-admin': 'System admin',
+}
+
 export default function AppLayout({ children }: AppLayoutProps) {
   const { user, logout } = useAuth()
   const { theme, toggleTheme } = useTheme()
-  const userInitial = user?.name.trim().charAt(0).toUpperCase() || 'S'
+  const userInitial = user?.name.trim().charAt(0).toUpperCase() || 'C'
+  const role = user?.role
 
   return (
     <div className="app-shell">
@@ -24,20 +32,30 @@ export default function AppLayout({ children }: AppLayoutProps) {
         </div>
 
         <div className="topbar-actions">
-          <nav className="topbar-nav" aria-label="Student dashboard sections">
-            <a className="catalogue-link" href="#registration-status">
-              Status
-            </a>
-            <a className="catalogue-link" href="#timetable">
-              Timetable
-            </a>
-            <a className="catalogue-link" href="#waitlist">
-              Waitlist
-            </a>
-            <a className="catalogue-link" href="#catalogue">
-              Browse courses
-            </a>
-          </nav>
+          {role === 'student' && (
+            <nav className="topbar-nav" aria-label="Student dashboard sections">
+              <a className="catalogue-link" href="#registration-status">
+                Status
+              </a>
+              <a className="catalogue-link" href="#timetable">
+                Timetable
+              </a>
+              <a className="catalogue-link" href="#waitlist">
+                Waitlist
+              </a>
+              <a className="catalogue-link" href="#catalogue">
+                Browse courses
+              </a>
+            </nav>
+          )}
+
+          {role === 'advisor' && (
+            <nav className="topbar-nav" aria-label="Advisor dashboard sections">
+              <a className="catalogue-link" href="#advisor-review-queue">
+                Review queue
+              </a>
+            </nav>
+          )}
 
           <button
             className="theme-toggle"
@@ -53,7 +71,7 @@ export default function AppLayout({ children }: AppLayoutProps) {
               <span className="user-avatar" aria-hidden="true">{userInitial}</span>
               <span>
                 <strong>{user.name}</strong>
-                <small>Student account</small>
+                <small>{ROLE_LABELS[user.role] || 'CoursePilot account'}</small>
               </span>
             </div>
           )}

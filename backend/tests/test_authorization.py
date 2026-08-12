@@ -194,5 +194,35 @@ class AuthorizationTestCase(unittest.TestCase):
             require_roles()
 
 
+    def test_inactive_account_cannot_use_existing_token(self):
+        user_id = uuid4()
+        user = SimpleNamespace(
+            id=user_id,
+            full_name="Suspended Advisor",
+            email="suspended@example.com",
+            role=UserRole.ADVISOR.value,
+            account_status="suspended",
+        )
+        token = create_access_token(user_id)
+
+        with patch(
+            "app.authorization.find_user_by_id",
+            return_value=user,
+        ):
+            response = self.client.get(
+                "/staff-only",
+                headers={"Authorization": f"Bearer {token}"},
+            )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(
+            response.json()["error"],
+            {
+                "code": "ACCOUNT_NOT_ACTIVE",
+                "message": "This account is not active.",
+            },
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

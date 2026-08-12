@@ -104,6 +104,18 @@ def login_student(
             },
         )
 
+    if getattr(user, "account_status", "active") != "active":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "ACCOUNT_NOT_ACTIVE",
+                "message": (
+                    "This account is not active. Contact an administrator "
+                    "if you believe access should be restored."
+                ),
+            },
+        )
+
     return AuthResponse(
         data=AuthData(
             token=create_access_token(user.id),
