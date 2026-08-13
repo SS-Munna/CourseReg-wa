@@ -10,6 +10,10 @@ import RegistrationStatusPanel from '../../components/RegistrationStatusPanel'
 import RegistrationWorkspace from '../../components/RegistrationWorkspace'
 import WaitlistPanel from '../../components/WaitlistPanel'
 import { useAuth } from '../../context/AuthContext'
+import {
+  sectionIsVisible,
+  useWorkspaceNavigation,
+} from '../../context/WorkspaceNavigationContext'
 import { ApiRequestError } from '../../services/apiClient'
 import { fetchCourses } from '../../services/courseApi'
 import {
@@ -161,6 +165,7 @@ function registrationErrorMessage(error: unknown, fallback: string): string {
 
 function StudentDashboardPage() {
   const { token, user } = useAuth()
+  const { activeSection, setActiveSection } = useWorkspaceNavigation()
   const [courses, setCourses] = useState<Course[]>([])
   const [catalogueOptions, setCatalogueOptions] = useState<Course[]>([])
   const [filters, setFilters] = useState<CourseFilterValues>({ courseType: 'all' })
@@ -702,30 +707,46 @@ function StudentDashboardPage() {
     ? waitlistDisabledReason(selectedCourse)
     : ''
   const courseActionBusy = Boolean(mutationCourseId || waitlistMutationCourseId)
+  const showOverview = sectionIsVisible(activeSection, 'student-overview')
+  const showCourses = sectionIsVisible(activeSection, 'student-courses')
+  const showSelection = sectionIsVisible(activeSection, 'student-selection')
+  const showStatus = sectionIsVisible(activeSection, 'student-status')
+  const showWaitlist = sectionIsVisible(activeSection, 'student-waitlist')
+  const showTimetable = sectionIsVisible(activeSection, 'student-timetable')
 
   return (
     <main className="app-main">
-      <section className="dashboard-hero">
-        <div>
-          <span className="page-eyebrow">Student dashboard</span>
-          <h1>Welcome back, {firstName}</h1>
-          <p>
-            Track your registration progress, build a valid course selection,
-            and submit it for advisor review from one place.
-          </p>
-        </div>
-        <div className="dashboard-hero-actions">
-          <a className="primary-dashboard-cta" href="#catalogue">
-            Browse &amp; add courses
-          </a>
-          <button className="refresh-button" type="button" onClick={refreshDashboard}>
-            <span aria-hidden="true">↻</span>
-            Refresh dashboard
-          </button>
-        </div>
-      </section>
+      {showOverview && (
+        <>
+          <section className="dashboard-hero">
+            <div>
+              <span className="page-eyebrow">Student dashboard</span>
+              <h1>Welcome back, {firstName}</h1>
+              <p>
+                Track your registration progress, build a valid course selection,
+                and submit it for advisor review from one place.
+              </p>
+            </div>
+            <div className="dashboard-hero-actions">
+              <button
+                className="primary-dashboard-cta"
+                type="button"
+                onClick={() => setActiveSection('student-courses')}
+              >
+                Browse &amp; add courses
+              </button>
+              <button
+                className="refresh-button"
+                type="button"
+                onClick={refreshDashboard}
+              >
+                <span aria-hidden="true">↻</span>
+                Refresh dashboard
+              </button>
+            </div>
+          </section>
 
-      <section className={`period-card period-${periodClass}`}>
+          <section className={`period-card period-${periodClass}`}>
         <div className="period-status-icon" aria-hidden="true">
           {period?.registration_enabled ? '✓' : 'i'}
         </div>
@@ -794,7 +815,9 @@ function StudentDashboardPage() {
             </article>
           ))}
         </div>
-      </section>
+          </section>
+        </>
+      )}
 
       {selectionFeedback && (
         <div
@@ -810,39 +833,48 @@ function StudentDashboardPage() {
         </div>
       )}
 
-      <RegistrationStatusPanel
-        overview={registrationOverview}
-        loading={dashboardLoading}
-      />
+      {showStatus && (
+        <RegistrationStatusPanel
+          overview={registrationOverview}
+          loading={dashboardLoading}
+        />
+      )}
 
-      <ApprovedSchedule
-        registrations={registrationOverview.registrations}
-        loading={dashboardLoading}
-        activeSemester={period?.semester ?? null}
-      />
+      {showTimetable && (
+        <ApprovedSchedule
+          registrations={registrationOverview.registrations}
+          loading={dashboardLoading}
+          activeSemester={period?.semester ?? null}
+        />
+      )}
 
-      <WaitlistPanel
-        entries={registrationOverview.waitlist_entries}
-        loading={dashboardLoading}
-        mutationCourseId={waitlistMutationCourseId}
-        actionsEnabled={!waitlistLeaveUnavailableReason}
-        unavailableReason={waitlistLeaveUnavailableReason}
-        onLeave={(courseId) => void handleLeaveWaitlist(courseId)}
-      />
+      {showWaitlist && (
+        <WaitlistPanel
+          entries={registrationOverview.waitlist_entries}
+          loading={dashboardLoading}
+          mutationCourseId={waitlistMutationCourseId}
+          actionsEnabled={!waitlistLeaveUnavailableReason}
+          unavailableReason={waitlistLeaveUnavailableReason}
+          onLeave={(courseId) => void handleLeaveWaitlist(courseId)}
+        />
+      )}
 
-      <RegistrationWorkspace
-        selections={draftSelections}
-        creditValidation={creditValidation}
-        loading={selectionLoading}
-        mutationCourseId={mutationCourseId}
-        validatingReview={validatingReview}
-        actionsEnabled={!registrationUnavailableReason}
-        unavailableReason={registrationUnavailableReason}
-        reviewUnavailableReason={reviewUnavailableReason}
-        onRemove={(courseId) => void handleRemoveSelection(courseId)}
-        onReview={() => void handleReviewSelection()}
-      />
+      {showSelection && (
+        <RegistrationWorkspace
+          selections={draftSelections}
+          creditValidation={creditValidation}
+          loading={selectionLoading}
+          mutationCourseId={mutationCourseId}
+          validatingReview={validatingReview}
+          actionsEnabled={!registrationUnavailableReason}
+          unavailableReason={registrationUnavailableReason}
+          reviewUnavailableReason={reviewUnavailableReason}
+          onRemove={(courseId) => void handleRemoveSelection(courseId)}
+          onReview={() => void handleReviewSelection()}
+        />
+      )}
 
+      {showCourses && (
       <section className="catalogue-section" id="catalogue" aria-labelledby="catalogue-title">
         <div className="section-heading catalogue-heading">
           <div>
@@ -919,6 +951,7 @@ function StudentDashboardPage() {
           </div>
         )}
       </section>
+      )}
 
       {selectedCourse && (
         <CourseDetailsModal
