@@ -463,6 +463,54 @@ class ApiRegressionSuiteTestCase(unittest.TestCase):
         self.assertIn("body.email", fields)
         self.assertIn("body.password", fields)
 
+    def test_pending_and_rejected_accounts_cannot_reuse_protected_routes(self):
+        cases = (
+            ("advisor", "pending"),
+            ("department-admin", "rejected"),
+        )
+
+        for role, status in cases:
+            with self.subTest(role=role, status=status):
+                user = self.add_user(role, status=status)
+                response = self.client.get(
+                    "/api/auth/me",
+                    headers=self.auth(user),
+                )
+                self.assert_error(
+                    response,
+                    status_code=403,
+                    code="ACCOUNT_NOT_ACTIVE",
+                )
+
+    def test_system_admin_cannot_use_student_registration_routes(self):
+        system_admin = self.add_user("system-admin")
+
+        for path in ("/api/selections", "/api/registrations", "/api/waitlists"):
+            with self.subTest(path=path):
+                response = self.client.get(
+                    path,
+                    headers=self.auth(system_admin),
+                )
+                self.assert_error(
+                    response,
+                    status_code=403,
+                    code="INSUFFICIENT_PERMISSIONS",
+                )
+
+    def test_advisor_cannot_read_global_audit_history(self):
+        advisor = self.add_user("advisor")
+
+        response = self.client.get(
+            "/api/admin/audit-logs",
+            headers=self.auth(advisor),
+        )
+
+        self.assert_error(
+            response,
+            status_code=403,
+            code="INSUFFICIENT_PERMISSIONS",
+        )
+
     def test_openapi_keeps_security_sensitive_error_responses_documented(self):
         schema = self.app.openapi()
         cases = {

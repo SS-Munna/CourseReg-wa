@@ -3775,3 +3775,435 @@ button:disabled {
     top: 72px;
   }
 }
+
+/* Issue #42: final role workspace shell and responsive UI normalization */
+.topbar {
+  padding-right: clamp(18px, 3vw, 42px);
+  padding-left: clamp(18px, 3vw, 42px);
+}
+
+.topbar-brand-area {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.workspace-menu-button {
+  display: none;
+  width: 40px;
+  height: 40px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 1.05rem;
+  cursor: pointer;
+}
+
+.workspace-frame {
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  min-height: calc(100vh - 72px);
+  background: color-mix(in srgb, var(--surface-soft) 64%, var(--surface));
+}
+
+.workspace-sidebar {
+  position: sticky;
+  top: 72px;
+  z-index: 14;
+  align-self: start;
+  height: calc(100vh - 72px);
+  padding: 22px 14px 18px;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.workspace-sidebar-heading {
+  display: grid;
+  gap: 3px;
+  padding: 0 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.workspace-sidebar-heading span,
+.workspace-sidebar-footer span {
+  color: var(--subtle);
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.workspace-sidebar-heading strong {
+  color: var(--text-strong);
+  font-size: 0.9rem;
+}
+
+.workspace-navigation {
+  display: grid;
+  gap: 5px;
+  padding: 14px 0;
+}
+
+.workspace-navigation button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid transparent;
+  border-radius: 11px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease, color 0.16s ease;
+}
+
+.workspace-navigation button:hover {
+  border-color: var(--border);
+  background: var(--surface-soft);
+  color: var(--text-strong);
+}
+
+.workspace-navigation button.active {
+  border-color: color-mix(in srgb, var(--primary) 22%, var(--border));
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.workspace-navigation button > span {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.workspace-navigation button > small {
+  color: var(--subtle);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
+.workspace-navigation button.active > small {
+  color: color-mix(in srgb, var(--primary) 72%, var(--muted));
+}
+
+.workspace-sidebar-footer {
+  display: grid;
+  gap: 4px;
+  margin-top: 8px;
+  padding: 14px 10px 0;
+  border-top: 1px solid var(--border);
+}
+
+.workspace-sidebar-footer strong {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workspace-content {
+  min-width: 0;
+}
+
+.workspace-content .app-main {
+  width: min(1180px, calc(100% - 48px));
+  padding-top: 34px;
+}
+
+.workspace-content .advisor-main,
+.workspace-content .admin-main {
+  width: min(1180px, calc(100% - 48px));
+}
+
+.workspace-sidebar-backdrop {
+  display: none;
+}
+
+.primary-dashboard-cta {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Standalone workspace views should start near the top of the content canvas. */
+.workspace-content .registration-status-section,
+.workspace-content .waitlist-section,
+.workspace-content .approved-schedule-section,
+.workspace-content .registration-workspace,
+.workspace-content .catalogue-section,
+.workspace-content .audit-section {
+  margin-top: 0;
+}
+
+/* Final administration layout: one focused tool at a time. */
+.admin-main {
+  gap: 1.15rem;
+}
+
+.admin-summary-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-summary-card {
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: none;
+}
+
+.admin-summary-card strong {
+  font-size: 1.45rem;
+}
+
+.workspace-panel-card,
+.admin-access-panel.workspace-panel-card,
+.admin-create-panel.workspace-panel-card {
+  width: 100%;
+  padding: 1.35rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.admin-create-panel.workspace-panel-card {
+  position: static;
+  top: auto;
+}
+
+.admin-form-wide {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  max-width: 880px;
+}
+
+.admin-form-span {
+  grid-column: 1 / -1;
+}
+
+.admin-policy-note {
+  max-width: 880px;
+  margin-top: 1.1rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 16%, var(--border));
+  background: color-mix(in srgb, var(--primary-soft) 55%, var(--surface));
+}
+
+.admin-empty-note,
+.admin-selected-student {
+  max-width: 880px;
+  border: 1px solid var(--border);
+  background: var(--surface-soft);
+}
+
+.admin-academic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 980px;
+}
+
+.admin-academic-grid .admin-compact-form {
+  margin-top: 0;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface-soft);
+}
+
+.admin-user-row {
+  background: var(--surface);
+}
+
+/* Reduce visual blending in light and dark workspaces. */
+:root[data-theme='dark'] .workspace-sidebar,
+:root[data-theme='dark'] .workspace-panel-card,
+:root[data-theme='dark'] .admin-summary-card,
+:root[data-theme='dark'] .admin-user-row {
+  background: #0f172a;
+}
+
+:root[data-theme='dark'] .workspace-frame {
+  background: #07101f;
+}
+
+@media (max-width: 1020px) {
+  .workspace-frame {
+    grid-template-columns: 220px minmax(0, 1fr);
+  }
+
+  .workspace-sidebar {
+    padding-right: 10px;
+    padding-left: 10px;
+  }
+
+  .admin-form-wide,
+  .admin-academic-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-form-span {
+    grid-column: auto;
+  }
+}
+
+@media (max-width: 860px) {
+  .workspace-menu-button {
+    display: grid;
+  }
+
+  .workspace-frame {
+    display: block;
+    min-height: calc(100vh - 72px);
+  }
+
+  .workspace-sidebar {
+    position: fixed;
+    top: 72px;
+    bottom: 0;
+    left: 0;
+    z-index: 40;
+    width: min(290px, 84vw);
+    height: auto;
+    transform: translateX(-105%);
+    box-shadow: 20px 0 50px rgba(15, 23, 42, 0.18);
+    transition: transform 0.2s ease;
+  }
+
+  .workspace-sidebar.is-open {
+    transform: translateX(0);
+  }
+
+  .workspace-sidebar-backdrop {
+    position: fixed;
+    inset: 72px 0 0;
+    z-index: 35;
+    display: block;
+    border: 0;
+    background: rgba(15, 23, 42, 0.38);
+    cursor: pointer;
+  }
+
+  .workspace-content .app-main,
+  .workspace-content .advisor-main,
+  .workspace-content .admin-main {
+    width: min(100% - 32px, 1180px);
+    padding-top: 28px;
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    min-height: 66px;
+    gap: 10px;
+    padding: 10px 14px;
+  }
+
+  .workspace-sidebar,
+  .workspace-sidebar-backdrop {
+    top: 66px;
+  }
+
+  .workspace-frame {
+    min-height: calc(100vh - 66px);
+  }
+
+  .topbar-actions {
+    gap: 7px;
+  }
+
+  .user-block > span:last-child {
+    display: none;
+  }
+
+  .user-block {
+    padding-left: 0;
+  }
+
+  .logout-button {
+    min-height: 38px;
+    padding: 0 10px;
+  }
+
+  .admin-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .admin-user-row {
+    padding: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .brand-text span {
+    display: none;
+  }
+
+  .brand-mark {
+    width: 36px;
+    height: 36px;
+  }
+
+  .notification-button,
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .workspace-content .app-main,
+  .workspace-content .advisor-main,
+  .workspace-content .admin-main {
+    width: calc(100% - 24px);
+    padding-top: 22px;
+    padding-bottom: 46px;
+  }
+
+  .dashboard-hero {
+    margin-bottom: 18px;
+  }
+
+  .dashboard-hero h1 {
+    font-size: 1.7rem;
+  }
+
+  .admin-summary-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-summary-card {
+    min-width: 0;
+  }
+
+  .admin-summary-card strong {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .brand-text,
+  .user-block {
+    display: none;
+  }
+
+  .notification-trigger,
+  .theme-toggle {
+    width: 36px;
+    height: 36px;
+  }
+
+  .notification-panel {
+    position: fixed;
+    top: 70px;
+    right: 12px;
+    left: 12px;
+    width: auto;
+    max-height: calc(100vh - 84px);
+  }
+}

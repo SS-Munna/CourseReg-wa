@@ -181,32 +181,25 @@ export default function LoginPage() {
         </p>
       </section>
 
-      <section className="auth-preview">
-        <div className="preview-card">
+      <section className="auth-preview" aria-label="CoursePilot access overview">
+        <div className="preview-card preview-card-compact">
           <span className="preview-label">One secure portal</span>
-          <h2>Role-based workspaces for every registration step</h2>
+          <h2>One login. The right workspace.</h2>
           <p>
-            Your account role determines what you can see and do after sign-in.
-            Student, advisor, and administrative workflows stay separated.
+            CoursePilot opens the tools assigned to your account automatically
+            after sign-in.
           </p>
 
-          <div className="preview-role-list">
-            <article>
-              <span>Student</span>
-              <strong>Plan and submit</strong>
-              <p>Browse courses, build a selection, track status, and view your timetable.</p>
-            </article>
-            <article>
-              <span>Advisor</span>
-              <strong>Review and decide</strong>
-              <p>Inspect assigned registration requests and approve or reject with comments.</p>
-            </article>
-            <article>
-              <span>Administration</span>
-              <strong>Control and oversee</strong>
-              <p>Manage academic setup, staff access, and system oversight.</p>
-            </article>
+          <div className="preview-check-list">
+            <span><strong>Student</strong> registration and timetable</span>
+            <span><strong>Advisor</strong> review and decisions</span>
+            <span><strong>Administration</strong> access and academic setup</span>
           </div>
+
+          <small>
+            Role permissions are enforced by the API, not just hidden in the
+            interface.
+          </small>
         </div>
       </section>
     </main>

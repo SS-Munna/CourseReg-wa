@@ -4,6 +4,10 @@ import type { FormEvent } from 'react'
 import AuditLogPanel from '../../components/AuditLogPanel'
 import { useAuth } from '../../context/AuthContext'
 import {
+  sectionIsVisible,
+  useWorkspaceNavigation,
+} from '../../context/WorkspaceNavigationContext'
+import {
   createDepartment,
   createProgram,
   createStaffAccount,
@@ -103,6 +107,7 @@ function SummaryCard({
 
 export default function AdminDashboardPage() {
   const { token, user } = useAuth()
+  const { activeSection, setActiveSection } = useWorkspaceNavigation()
   const isSystemAdmin = user?.role === 'system-admin'
 
   const [overview, setOverview] = useState<AdminOverview>(EMPTY_OVERVIEW)
@@ -511,61 +516,75 @@ const saveProgram = async (
     return `${start}–${end} of ${pagination.total_items}`
   }, [pagination])
 
+  const showOverview = sectionIsVisible(activeSection, 'admin-overview')
+  const showUsers = sectionIsVisible(activeSection, 'admin-users')
+  const showStaff = sectionIsVisible(activeSection, 'admin-staff')
+  const showStudents = sectionIsVisible(activeSection, 'admin-students')
+  const showAcademic = sectionIsVisible(activeSection, 'admin-academic')
+  const showAudit = sectionIsVisible(activeSection, 'admin-audit')
+
   return (
     <main className="app-main admin-main">
-      <section className="dashboard-hero admin-hero">
-        <div>
-          <span className="page-eyebrow">Administration workspace</span>
-          <h1>Welcome, {firstName}</h1>
-          <p>
-            Control staff access, protect privileged accounts, and monitor
-            CoursePilot users from one administration workspace.
-          </p>
-        </div>
+      {showOverview && (
+        <>
+          <section className="dashboard-hero admin-hero">
+            <div>
+              <span className="page-eyebrow">Administration workspace</span>
+              <h1>Welcome, {firstName}</h1>
+              <p>
+                Manage account access, academic setup, and system oversight
+                from focused administration tools.
+              </p>
+            </div>
 
-        <button
-          className="refresh-button"
-          type="button"
-          disabled={loading}
-          onClick={() => void loadDashboard(appliedSearch, pagination.page)}
-        >
-          <span aria-hidden="true">↻</span>
-          Refresh
-        </button>
-      </section>
+            <button
+              className="refresh-button"
+              type="button"
+              disabled={loading}
+              onClick={() => void loadDashboard(appliedSearch, pagination.page)}
+            >
+              <span aria-hidden="true">↻</span>
+              Refresh
+            </button>
+          </section>
 
-      <section className="admin-summary-grid" aria-label="Administration summary">
-        <SummaryCard
-          label="Visible users"
-          value={overview.total_users}
-          note="accounts in your scope"
-        />
-        <SummaryCard
-          label="Active students"
-          value={overview.active_students}
-          note="student access enabled"
-        />
-        <SummaryCard
-          label="Active advisors"
-          value={overview.active_advisors}
-          note="advisor access enabled"
-        />
-        <SummaryCard
-          label="Pending staff"
-          value={overview.pending_staff}
-          note="awaiting activation"
-        />
-        <SummaryCard
-          label="Suspended"
-          value={overview.suspended_accounts}
-          note="access blocked"
-        />
-        <SummaryCard
-          label="Profiles to link"
-          value={overview.unlinked_students}
-          note="student setup required"
-        />
-      </section>
+          <section
+            className="admin-summary-grid"
+            aria-label="Administration summary"
+          >
+            <SummaryCard
+              label="Visible users"
+              value={overview.total_users}
+              note="accounts in your scope"
+            />
+            <SummaryCard
+              label="Active students"
+              value={overview.active_students}
+              note="student access enabled"
+            />
+            <SummaryCard
+              label="Active advisors"
+              value={overview.active_advisors}
+              note="advisor access enabled"
+            />
+            <SummaryCard
+              label="Pending staff"
+              value={overview.pending_staff}
+              note="awaiting activation"
+            />
+            <SummaryCard
+              label="Suspended"
+              value={overview.suspended_accounts}
+              note="access blocked"
+            />
+            <SummaryCard
+              label="Profiles to link"
+              value={overview.unlinked_students}
+              note="student setup required"
+            />
+          </section>
+        </>
+      )}
 
       {feedback && (
         <div className="inline-alert success" role="status">
@@ -581,15 +600,15 @@ const saveProgram = async (
         </div>
       )}
 
-      <section className="admin-workspace" id="admin-users">
-        <div className="admin-access-panel">
+      {showUsers && (
+        <section className="admin-access-panel workspace-panel-card" id="admin-users">
           <div className="section-heading">
             <div>
-              <span className="section-eyebrow">Users & access</span>
+              <span className="section-eyebrow">Users &amp; access</span>
               <h2>Account administration</h2>
               <p>
-                Students register themselves. Staff accounts are provisioned
-                here and can be activated or suspended by authorized admins.
+                Search accounts, link student profiles, and control account
+                access within your administrative scope.
               </p>
             </div>
             <span className="summary-note">{pageLabel}</span>
@@ -616,7 +635,7 @@ const saveProgram = async (
           ) : users.length === 0 ? (
             <div className="dashboard-state">
               <strong>No accounts found</strong>
-              <span>Try another search or create a staff account.</span>
+              <span>Try another search or provision a staff account.</span>
             </div>
           ) : (
             <div className="admin-user-list">
@@ -670,11 +689,13 @@ const saveProgram = async (
                             onClick={() => {
                               setSelectedStudent(target)
                               setStudentFormError('')
+                              setActiveSection('admin-students')
                             }}
                           >
                             Link profile
                           </button>
                         )}
+
                       {manageable ? (
                         <>
                           {target.account_status !== 'active' && (
@@ -740,17 +761,26 @@ const saveProgram = async (
               </button>
             </div>
           )}
-        </div>
+        </section>
+      )}
 
-        <aside className="admin-create-panel" id="admin-create-staff">
-          <span className="section-eyebrow">Provision staff</span>
-          <h2>Create staff account</h2>
-          <p>
-            Staff use the shared CoursePilot login after their account is
-            created and activated here.
-          </p>
+      {showStaff && (
+        <section
+          className="admin-create-panel workspace-panel-card"
+          id="admin-create-staff"
+        >
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">Provision staff</span>
+              <h2>Create staff account</h2>
+              <p>
+                Faculty and administrative accounts are provisioned here and
+                use the same CoursePilot login after activation.
+              </p>
+            </div>
+          </div>
 
-          <form className="admin-create-form" onSubmit={createStaff} noValidate>
+          <form className="admin-create-form admin-form-wide" onSubmit={createStaff} noValidate>
             <label>
               <span>Full name</span>
               <input
@@ -789,9 +819,7 @@ const saveProgram = async (
               <select
                 value={role}
                 onChange={(event) =>
-                  setRole(
-                    event.target.value as CreateStaffPayload['role'],
-                  )
+                  setRole(event.target.value as CreateStaffPayload['role'])
                 }
               >
                 <option value="advisor">Advisor / faculty</option>
@@ -826,9 +854,7 @@ const saveProgram = async (
                     value={employeeNumber}
                     placeholder="FAC-001"
                     maxLength={64}
-                    onChange={(event) =>
-                      setEmployeeNumber(event.target.value)
-                    }
+                    onChange={(event) => setEmployeeNumber(event.target.value)}
                   />
                 </label>
               </>
@@ -840,8 +866,7 @@ const saveProgram = async (
                 value={accountStatus}
                 onChange={(event) =>
                   setAccountStatus(
-                    event.target
-                      .value as CreateStaffPayload['account_status'],
+                    event.target.value as CreateStaffPayload['account_status'],
                   )
                 }
               >
@@ -851,13 +876,13 @@ const saveProgram = async (
             </label>
 
             {formError && (
-              <p className="admin-form-error" role="alert">
+              <p className="admin-form-error admin-form-span" role="alert">
                 {formError}
               </p>
             )}
 
             <button
-              className="admin-create-button"
+              className="admin-create-button admin-form-span"
               type="submit"
               disabled={creating}
             >
@@ -865,267 +890,273 @@ const saveProgram = async (
             </button>
           </form>
 
-<div className="admin-policy-note">
-    <strong>Access policy</strong>
-    <span>
-      Public sign-up remains student-only. Faculty and administrative
-      roles cannot be self-assigned.
-    </span>
-  </div>
-
-  <div className="admin-divider" />
-
-  <span className="section-eyebrow">Student setup</span>
-  <h2>Link academic profile</h2>
-  <p>
-    Link a self-registered student to a program and advisor before
-    course registration actions are enabled.
-  </p>
-
-  {selectedStudent ? (
-    <form
-      className="admin-create-form"
-      onSubmit={linkStudentProfile}
-      noValidate
-    >
-      <div className="admin-selected-student">
-        <strong>{selectedStudent.name}</strong>
-        <span>{selectedStudent.email}</span>
-      </div>
-
-      <label>
-        <span>Student number</span>
-        <input
-          value={studentNumber}
-          placeholder="STU-2026-001"
-          maxLength={64}
-          onChange={(event) => setStudentNumber(event.target.value)}
-        />
-      </label>
-
-      <label>
-        <span>Current trimester</span>
-        <input
-          type="number"
-          min="1"
-          max="30"
-          value={studentTrimester}
-          onChange={(event) =>
-            setStudentTrimester(event.target.value)
-          }
-        />
-      </label>
-
-      <label>
-        <span>Program</span>
-        <select
-          value={studentProgramId}
-          onChange={(event) => {
-            setStudentProgramId(event.target.value)
-            setStudentAdvisorId('')
-          }}
-        >
-          <option value="">Select program</option>
-          {programs.map((program) => (
-            <option key={program.id} value={program.id}>
-              {program.code} · {program.name}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      <label>
-        <span>Advisor</span>
-        <select
-          value={studentAdvisorId}
-          onChange={(event) =>
-            setStudentAdvisorId(event.target.value)
-          }
-        >
-          <option value="">Select advisor</option>
-          {advisorOptions
-            .filter((advisor) => {
-              const program = programs.find(
-                (item) => item.id === studentProgramId,
-              )
-              return (
-                !program ||
-                advisor.department_id === program.department_id
-              )
-            })
-            .map((advisor) => (
-              <option key={advisor.id} value={advisor.id}>
-                {advisor.name} · {advisor.employee_number}
-              </option>
-            ))}
-        </select>
-      </label>
-
-      {studentFormError && (
-        <p className="admin-form-error" role="alert">
-          {studentFormError}
-        </p>
+          <div className="admin-policy-note">
+            <strong>Access policy</strong>
+            <span>
+              Public sign-up remains student-only. Faculty and administrative
+              roles cannot be self-assigned.
+            </span>
+          </div>
+        </section>
       )}
 
-      <div className="admin-inline-actions">
-        <button
-          className="admin-create-button"
-          type="submit"
-          disabled={linkingStudent}
-        >
-          {linkingStudent ? 'Linking…' : 'Link student profile'}
-        </button>
-        <button
-          className="admin-secondary-button"
-          type="button"
-          onClick={() => {
-            setSelectedStudent(null)
-            setStudentFormError('')
-          }}
-        >
-          Cancel
-        </button>
-      </div>
-    </form>
-  ) : (
-    <div className="admin-empty-note">
-      Choose <strong>Link profile</strong> beside an unlinked student
-      account.
-    </div>
-  )}
+      {showStudents && (
+        <section className="admin-create-panel workspace-panel-card" id="admin-student-setup">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">Student setup</span>
+              <h2>Link academic profile</h2>
+              <p>
+                Connect a self-registered student to a program and advisor
+                before registration actions are enabled.
+              </p>
+            </div>
+          </div>
 
-  {isSystemAdmin && (
-    <>
-      <div className="admin-divider" />
+          {selectedStudent ? (
+            <form
+              className="admin-create-form admin-form-wide"
+              onSubmit={linkStudentProfile}
+              noValidate
+            >
+              <div className="admin-selected-student admin-form-span">
+                <strong>{selectedStudent.name}</strong>
+                <span>{selectedStudent.email}</span>
+              </div>
 
-      <span className="section-eyebrow">Academic setup</span>
-      <h2>Departments & programs</h2>
-      <p>
-        System administrators can create the academic structure used
-        when staff and student profiles are provisioned.
-      </p>
+              <label>
+                <span>Student number</span>
+                <input
+                  value={studentNumber}
+                  placeholder="STU-2026-001"
+                  maxLength={64}
+                  onChange={(event) => setStudentNumber(event.target.value)}
+                />
+              </label>
 
-      <form
-        className="admin-create-form admin-compact-form"
-        onSubmit={saveDepartment}
-      >
-        <strong>Create department</strong>
-        <label>
-          <span>Department code</span>
-          <input
-            value={departmentCode}
-            placeholder="CSE"
-            maxLength={32}
-            onChange={(event) =>
-              setDepartmentCode(event.target.value)
-            }
-          />
-        </label>
-        <label>
-          <span>Department name</span>
-          <input
-            value={departmentName}
-            placeholder="Computer Science and Engineering"
-            maxLength={255}
-            onChange={(event) =>
-              setDepartmentName(event.target.value)
-            }
-          />
-        </label>
-        <button
-          className="admin-create-button"
-          type="submit"
-          disabled={savingAcademicSetup}
-        >
-          Create department
-        </button>
-      </form>
+              <label>
+                <span>Current trimester</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={studentTrimester}
+                  onChange={(event) => setStudentTrimester(event.target.value)}
+                />
+              </label>
 
-      <form
-        className="admin-create-form admin-compact-form"
-        onSubmit={saveProgram}
-      >
-        <strong>Create program</strong>
-        <label>
-          <span>Department</span>
-          <select
-            value={programDepartmentId}
-            onChange={(event) =>
-              setProgramDepartmentId(event.target.value)
-            }
-          >
-            <option value="">Select department</option>
-            {departments.map((department) => (
-              <option key={department.id} value={department.id}>
-                {department.code} · {department.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <span>Program code</span>
-          <input
-            value={programCode}
-            placeholder="BSC-CSE"
-            maxLength={32}
-            onChange={(event) => setProgramCode(event.target.value)}
-          />
-        </label>
-        <label>
-          <span>Program name</span>
-          <input
-            value={programName}
-            placeholder="BSc in Computer Science and Engineering"
-            maxLength={255}
-            onChange={(event) => setProgramName(event.target.value)}
-          />
-        </label>
-        <div className="admin-credit-grid">
-          <label>
-            <span>Minimum credits</span>
-            <input
-              type="number"
-              min="0"
-              max="60"
-              value={programMinimumCredit}
-              onChange={(event) =>
-                setProgramMinimumCredit(event.target.value)
-              }
-            />
-          </label>
-          <label>
-            <span>Maximum credits</span>
-            <input
-              type="number"
-              min="0"
-              max="60"
-              value={programMaximumCredit}
-              onChange={(event) =>
-                setProgramMaximumCredit(event.target.value)
-              }
-            />
-          </label>
-        </div>
-        <button
-          className="admin-create-button"
-          type="submit"
-          disabled={savingAcademicSetup}
-        >
-          Create program
-        </button>
-      </form>
+              <label>
+                <span>Program</span>
+                <select
+                  value={studentProgramId}
+                  onChange={(event) => {
+                    setStudentProgramId(event.target.value)
+                    setStudentAdvisorId('')
+                  }}
+                >
+                  <option value="">Select program</option>
+                  {programs.map((program) => (
+                    <option key={program.id} value={program.id}>
+                      {program.code} · {program.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
 
-      {academicSetupError && (
-        <p className="admin-form-error" role="alert">
-          {academicSetupError}
-        </p>
+              <label>
+                <span>Advisor</span>
+                <select
+                  value={studentAdvisorId}
+                  onChange={(event) =>
+                    setStudentAdvisorId(event.target.value)
+                  }
+                >
+                  <option value="">Select advisor</option>
+                  {advisorOptions
+                    .filter((advisor) => {
+                      const program = programs.find(
+                        (item) => item.id === studentProgramId,
+                      )
+                      return (
+                        !program ||
+                        advisor.department_id === program.department_id
+                      )
+                    })
+                    .map((advisor) => (
+                      <option key={advisor.id} value={advisor.id}>
+                        {advisor.name} · {advisor.employee_number}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              {studentFormError && (
+                <p className="admin-form-error admin-form-span" role="alert">
+                  {studentFormError}
+                </p>
+              )}
+
+              <div className="admin-inline-actions admin-form-span">
+                <button
+                  className="admin-create-button"
+                  type="submit"
+                  disabled={linkingStudent}
+                >
+                  {linkingStudent ? 'Linking…' : 'Link student profile'}
+                </button>
+                <button
+                  className="admin-secondary-button"
+                  type="button"
+                  onClick={() => {
+                    setSelectedStudent(null)
+                    setStudentFormError('')
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="admin-empty-note">
+              Open <strong>Users &amp; access</strong> and choose{' '}
+              <strong>Link profile</strong> beside an unlinked student.
+            </div>
+          )}
+        </section>
       )}
-    </>
-  )}
-</aside>
-      </section>
 
-      {isSystemAdmin && <AuditLogPanel />}
+      {showAcademic && isSystemAdmin && (
+        <section className="admin-create-panel workspace-panel-card" id="admin-academic-setup">
+          <div className="section-heading">
+            <div>
+              <span className="section-eyebrow">Academic setup</span>
+              <h2>Departments &amp; programs</h2>
+              <p>
+                Maintain the academic structure used by staff and student
+                profiles.
+              </p>
+            </div>
+          </div>
+
+          <div className="admin-academic-grid">
+            <form
+              className="admin-create-form admin-compact-form"
+              onSubmit={saveDepartment}
+              noValidate
+            >
+              <strong>Create department</strong>
+              <label>
+                <span>Department code</span>
+                <input
+                  value={departmentCode}
+                  placeholder="CSE"
+                  maxLength={32}
+                  onChange={(event) => setDepartmentCode(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Department name</span>
+                <input
+                  value={departmentName}
+                  placeholder="Computer Science and Engineering"
+                  maxLength={255}
+                  onChange={(event) => setDepartmentName(event.target.value)}
+                />
+              </label>
+              <button
+                className="admin-create-button"
+                type="submit"
+                disabled={savingAcademicSetup}
+              >
+                Create department
+              </button>
+            </form>
+
+            <form
+              className="admin-create-form admin-compact-form"
+              onSubmit={saveProgram}
+              noValidate
+            >
+              <strong>Create program</strong>
+              <label>
+                <span>Department</span>
+                <select
+                  value={programDepartmentId}
+                  onChange={(event) =>
+                    setProgramDepartmentId(event.target.value)
+                  }
+                >
+                  <option value="">Select department</option>
+                  {departments.map((department) => (
+                    <option key={department.id} value={department.id}>
+                      {department.code} · {department.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                <span>Program code</span>
+                <input
+                  value={programCode}
+                  placeholder="BSC-CSE"
+                  maxLength={32}
+                  onChange={(event) => setProgramCode(event.target.value)}
+                />
+              </label>
+              <label>
+                <span>Program name</span>
+                <input
+                  value={programName}
+                  placeholder="BSc in Computer Science and Engineering"
+                  maxLength={255}
+                  onChange={(event) => setProgramName(event.target.value)}
+                />
+              </label>
+              <div className="admin-credit-grid">
+                <label>
+                  <span>Minimum credits</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={programMinimumCredit}
+                    onChange={(event) =>
+                      setProgramMinimumCredit(event.target.value)
+                    }
+                  />
+                </label>
+                <label>
+                  <span>Maximum credits</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    value={programMaximumCredit}
+                    onChange={(event) =>
+                      setProgramMaximumCredit(event.target.value)
+                    }
+                  />
+                </label>
+              </div>
+              <button
+                className="admin-create-button"
+                type="submit"
+                disabled={savingAcademicSetup}
+              >
+                Create program
+              </button>
+            </form>
+          </div>
+
+          {academicSetupError && (
+            <p className="admin-form-error" role="alert">
+              {academicSetupError}
+            </p>
+          )}
+        </section>
+      )}
+
+      {showAudit && isSystemAdmin && <AuditLogPanel />}
     </main>
   )
 }

@@ -333,3 +333,143 @@
     gap: 0.25rem;
   }
 }
+
+/* Issue #42: calmer, compact login presentation */
+.auth-shell {
+  grid-template-columns: minmax(360px, 480px) minmax(320px, 440px);
+  justify-content: center;
+  align-items: center;
+  gap: clamp(2.5rem, 6vw, 6rem);
+  padding: 3rem clamp(1.5rem, 4vw, 4rem);
+}
+
+.auth-card {
+  width: 100%;
+  margin: 0;
+}
+
+.auth-preview {
+  display: block;
+  padding: 0;
+}
+
+.preview-card.preview-card-compact {
+  max-width: 440px;
+  padding: 2rem;
+  border: 1px solid #dbe4f0;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #0f172a;
+  box-shadow: 0 22px 65px rgba(15, 23, 42, 0.1);
+  backdrop-filter: blur(12px);
+}
+
+.preview-card-compact .preview-label {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.preview-card-compact h2 {
+  margin: 1rem 0 0.65rem;
+  color: #0f172a;
+  font-size: clamp(1.75rem, 3vw, 2.45rem);
+  line-height: 1.08;
+}
+
+.preview-card-compact > p {
+  color: #64748b;
+  font-size: 0.95rem;
+}
+
+.preview-check-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 1.35rem;
+}
+
+.preview-check-list > span {
+  position: relative;
+  padding: 0.8rem 0.9rem 0.8rem 2.15rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.9);
+  color: #475569;
+  font-size: 0.86rem;
+  line-height: 1.45;
+}
+
+.preview-check-list > span::before {
+  position: absolute;
+  top: 0.82rem;
+  left: 0.85rem;
+  content: '✓';
+  color: #2563eb;
+  font-weight: 900;
+}
+
+.preview-check-list strong {
+  color: #0f172a;
+}
+
+.preview-card-compact > small {
+  display: block;
+  margin-top: 1.2rem;
+  color: #64748b;
+  font-size: 0.76rem;
+  line-height: 1.55;
+}
+
+:root[data-theme='dark'] .preview-card.preview-card-compact {
+  border-color: #334155;
+  background: rgba(15, 23, 42, 0.88);
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .preview-card-compact h2,
+:root[data-theme='dark'] .preview-check-list strong {
+  color: #e5e7eb;
+}
+
+:root[data-theme='dark'] .preview-card-compact > p,
+:root[data-theme='dark'] .preview-card-compact > small {
+  color: #94a3b8;
+}
+
+:root[data-theme='dark'] .preview-check-list > span {
+  border-color: #334155;
+  background: rgba(2, 6, 23, 0.65);
+  color: #cbd5e1;
+}
+
+@media (max-width: 960px) {
+  .auth-shell {
+    grid-template-columns: minmax(0, 480px);
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem 1.25rem;
+  }
+
+  .auth-preview {
+    display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .auth-shell {
+    align-items: start;
+    padding: 1rem;
+  }
+
+  .auth-card {
+    padding: 1.3rem;
+    border-radius: 20px;
+  }
+
+  .auth-brand {
+    margin-bottom: 1.35rem;
+  }
+
+  .auth-heading h2 {
+    font-size: 1.55rem;
+  }
+}

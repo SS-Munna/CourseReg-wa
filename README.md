@@ -297,3 +297,15 @@ regression matrix. See `backend/TESTING.md` for focused and verbose commands.
 ### Frontend quality gate
 
 Frontend input validation now mirrors critical API boundaries for authentication, staff provisioning, student profile setup, and academic program configuration. Run `npm test`, `npm run lint`, and `npm run build` from `frontend/`; detailed guidance is in `frontend/TESTING.md`.
+
+## Final role workspace and release review
+
+The authenticated interface now uses a shared responsive workspace shell with
+role-specific navigation. Students, advisors, department administrators, and
+system administrators see only the tools relevant to their role, while the API
+continues to enforce the underlying authorization boundaries independently of
+the UI. The sidebar becomes a mobile drawer on narrow screens, and the login
+page uses a compact role-neutral access summary rather than a large role table.
+
+The final security and regression checklist is documented in
+`docs/23-final-security-regression.md`.

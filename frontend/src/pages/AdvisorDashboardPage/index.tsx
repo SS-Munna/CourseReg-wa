@@ -2,6 +2,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 
 import { useAuth } from '../../context/AuthContext'
 import {
+  sectionIsVisible,
+  useWorkspaceNavigation,
+} from '../../context/WorkspaceNavigationContext'
+import {
   fetchAdvisorRequest,
   fetchAdvisorRequests,
   submitAdvisorDecision,
@@ -339,6 +343,7 @@ function RequestDetails({
 
 export default function AdvisorDashboardPage() {
   const { token, user } = useAuth()
+  const { activeSection } = useWorkspaceNavigation()
   const [statusFilter, setStatusFilter] =
     useState<AdvisorRequestStatus>('pending')
   const [requests, setRequests] = useState<
@@ -481,10 +486,14 @@ export default function AdvisorDashboardPage() {
   }, [pagination])
 
   const firstName = user?.name.trim().split(/\s+/)[0] || 'Advisor'
+  const showOverview = sectionIsVisible(activeSection, 'advisor-overview')
+  const showReviews = sectionIsVisible(activeSection, 'advisor-reviews')
 
   return (
     <main className="app-main advisor-main">
-      <section className="dashboard-hero advisor-hero">
+      {showOverview && (
+        <>
+          <section className="dashboard-hero advisor-hero">
         <div>
           <span className="page-eyebrow">Advisor workspace</span>
           <h1>Good to see you, {firstName}</h1>
@@ -525,7 +534,9 @@ export default function AdvisorDashboardPage() {
           }
           note={pageLabel}
         />
-      </section>
+          </section>
+        </>
+      )}
 
       {feedback && (
         <div className="inline-alert success" role="status">
@@ -534,7 +545,8 @@ export default function AdvisorDashboardPage() {
         </div>
       )}
 
-      <section className="advisor-workspace" id="advisor-review-queue">
+      {showReviews && (
+        <section className="advisor-workspace" id="advisor-review-queue">
         <div className="advisor-queue-panel">
           <div className="section-heading advisor-queue-heading">
             <div>
@@ -647,7 +659,8 @@ export default function AdvisorDashboardPage() {
             </div>
           )}
         </div>
-      </section>
+        </section>
+      )}
     </main>
   )
 }
