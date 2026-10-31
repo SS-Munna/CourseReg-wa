@@ -1,12 +1,19 @@
 import hashlib
 import hmac
+import re
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
 import jwt
+from pwdlib import PasswordHash
+from pwdlib.exceptions import UnknownHashError
 
 from app.config import settings
+
+
+_password_hasher = PasswordHash.recommended()
+_legacy_password_hash = re.compile(r"[0-9a-f]{64}")
 
 
 class AccessTokenError(Exception):
@@ -14,11 +21,34 @@ class AccessTokenError(Exception):
 
 
 def hash_password(password: str) -> str:
-    return hashlib.sha256(password.encode("utf-8")).hexdigest()
+    return _password_hasher.hash(password)
 
 
 def verify_password(password: str, password_hash: str) -> bool:
-    return hmac.compare_digest(hash_password(password), password_hash)
+    if _legacy_password_hash.fullmatch(password_hash):
+        # Compatibility only: never create a new SHA-256 password record.
+        legacy_digest = hashlib.sha256(password.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(legacy_digest, password_hash)
+
+    try:
+        return _password_hasher.verify(password, password_hash)
+    except UnknownHashError:
+        return False
+
+
+def verify_and_update_password(
+    password: str, password_hash: str,
+) -> tuple[bool, str | None]:
+    """Return a replacement hash only after successful verification."""
+    if _legacy_password_hash.fullmatch(password_hash):
+        if verify_password(password, password_hash):
+            return True, hash_password(password)
+        return False, None
+
+    try:
+        return _password_hasher.verify_and_update(password, password_hash)
+    except UnknownHashError:
+        return False, None
 
 
 def create_access_token(

@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from app.models.user import User
-from app.security import hash_password, verify_password
+from app.security import hash_password, verify_and_update_password, verify_password
 
 
 def find_user_by_email(db: Session, email: str) -> User | None:
@@ -35,7 +35,17 @@ def verify_user_credentials(db: Session, email: str, password: str) -> User | No
     if user is None:
         return None
 
-    if not verify_password(password, user.password_hash):
+    # Inactive accounts keep their existing 403 response without changing data.
+    if user.account_status != "active":
+        return user if verify_password(password, user.password_hash) else None
+
+    valid, updated_hash = verify_and_update_password(password, user.password_hash)
+    if not valid:
         return None
+
+    if updated_hash is not None:
+        user.password_hash = updated_hash
+        db.commit()
+        db.refresh(user)
 
     return user

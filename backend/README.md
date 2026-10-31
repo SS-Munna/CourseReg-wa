@@ -28,7 +28,16 @@ JWT_ALGORITHM=HS256
 JWT_EXPIRE_MINUTES=30
 ```
 
-`JWT_SECRET_KEY` must be replaced with a strong, private value outside local development. Never commit a real JWT secret to GitHub.
+Set `ENVIRONMENT=production` for deployments. Outside `development`, the backend
+stops during startup if `JWT_SECRET_KEY` is missing, blank, or still uses the
+development fallback or example placeholder. Generate a private secret with:
+
+```powershell
+python -c "import secrets; print(secrets.token_urlsafe(48))"
+```
+
+Save that value in the deployment environment. Never commit a real JWT secret to
+GitHub. Local development can use the built-in development fallback.
 
 ## Run Backend
 
@@ -128,6 +137,18 @@ must be replaced by signing in again after this migration.
 ## Authentication API
 
 CoursePilot uses signed, expiring JWT access tokens. Each token contains the user ID, issue time, and expiration time. The default expiry period is 30 minutes.
+
+All new passwords (student sign-up, staff provisioning, and administrator
+bootstrap) use salted Argon2id through `pwdlib[argon2]`, following the
+[current FastAPI password-hashing guidance](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/#install-pwdlib).
+Install the updated `requirements.txt` before starting the backend.
+
+Existing SHA-256 password records remain readable for compatibility. A successful
+login by an active account replaces its legacy hash with Argon2id before issuing
+a token. Failed logins and inactive accounts leave stored hashes unchanged.
+Legacy records for accounts that have not signed in remain unchanged until their
+next successful login. The existing hash column supports Argon2id, so no database
+reset or schema migration is required.
 
 Old `demo-token-*` values are no longer accepted.
 

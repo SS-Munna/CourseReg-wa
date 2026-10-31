@@ -309,3 +309,19 @@ page uses a compact role-neutral access summary rather than a large role table.
 
 The final security and regression checklist is documented in
 `docs/23-final-security-regression.md`.
+
+## Submitting with complete Git history
+
+Submit the repository link with its original commits so the development history
+can be reviewed. For a fresh checkout, clone all branches without a depth limit:
+
+```bash
+git clone --no-single-branch https://github.com/SS-Munna/CourseReg-wa.git
+```
+
+For an existing checkout, run `git rev-parse --is-shallow-repository`. If it
+returns `true`, retrieve the missing history with `git fetch --unshallow origin`.
+Review the available history with `git log --all --oneline --decorate` before
+submitting. A source ZIP does not contain Git history. Preserve existing commits;
+do not reinitialize the repository, squash its history, or alter authors and
+timestamps for submission.
