@@ -12,6 +12,11 @@ Issue #42 is the final release gate for CoursePilot. The review focuses on role 
 - System administrators retain administration access but do not receive student registration permissions.
 - Global audit history remains system-admin only.
 - Authentication failures use the shared error contract without exposing password hashes or stored credential material.
+- New student, staff, and bootstrap passwords use salted Argon2id. Legacy
+  SHA-256 records upgrade on successful active-account login; failed or
+  inactive-account logins do not modify stored hashes.
+- Outside development, configuration rejects missing, blank, development-default,
+  and example-placeholder JWT secrets before the backend starts.
 
 ## Final UI regression scope
 

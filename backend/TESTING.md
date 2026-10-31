@@ -37,6 +37,8 @@ The suite covers the main backend risk areas, including:
 
 - JWT registration, login, current-user lookup, invalid tokens, deleted users,
   and inactive-account enforcement;
+- salted Argon2id hashing, long Unicode passwords, safe legacy SHA-256 login
+  upgrades, and rejection of missing/public JWT secrets outside development;
 - role boundaries for students, advisors, department administrators, and
   system administrators;
 - course catalogue, registration period, draft selection, final submission,
